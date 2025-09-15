@@ -1,6 +1,6 @@
 package com.tourney.domain.user;
 
-import com.tourney.domain.Tournament;
+import com.tourney.domain.tournament.Tournament;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -9,7 +9,8 @@ import java.util.List;
 import java.util.Set;
 
 @Entity
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class User {
@@ -25,8 +26,8 @@ public class User {
     private Set<UserRole> roles = new HashSet<>();
 
     @OneToMany(mappedBy = "organizer", cascade = CascadeType.ALL)
-    private List<Tournament> organizedTournaments;
+    private Set<Tournament> organizedTournaments = new HashSet<>();
 
     @ManyToMany(mappedBy = "participants")
-    private List<Tournament> joinedTournaments;
+    private Set<Tournament> joinedTournaments = new HashSet<>();
 }

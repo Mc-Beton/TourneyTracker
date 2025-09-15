@@ -1,4 +1,4 @@
-package com.tourney.domain;
+package com.tourney.domain.tournament;
 
 import com.tourney.domain.systems.GameSystem;
 import com.tourney.domain.user.User;
@@ -24,7 +24,8 @@ public class Tournament {
     private LocalDate startDate;
     private int numberOfRounds;
 
-    @Enumerated(EnumType.STRING)
+    @OneToOne
+    @JoinColumn(name = "game_system_id")
     private GameSystem gameSystem;
 
     @ManyToOne

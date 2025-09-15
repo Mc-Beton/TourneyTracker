@@ -1,12 +1,15 @@
-package com.tourney.domain.games;
+package com.tourney.domain.tournament;
 
-import com.tourney.domain.Tournament;
+import com.tourney.domain.games.Match;
 import jakarta.persistence.*;
+import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class Round {
+@Entity
+@Getter
+public class TournamentRound {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -17,6 +20,6 @@ public class Round {
     @JoinColumn(name = "tournament_id")
     private Tournament tournament;
 
-    @OneToMany(mappedBy = "round", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "tournamentRound", cascade = CascadeType.ALL)
     private List<Match> matches = new ArrayList<>();
 }
