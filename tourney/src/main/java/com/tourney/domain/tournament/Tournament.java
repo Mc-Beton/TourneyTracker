@@ -30,7 +30,15 @@ public class Tournament {
 
     @ManyToOne
     @JoinColumn(name = "organizer_id")
-    private User organizer; // Organizator turnieju
+    private User organizer;
+
+    @OneToMany
+    @JoinTable(
+            name = "tournament_rounds",
+            joinColumns = @JoinColumn(name = "tournament_id"),
+            inverseJoinColumns = @JoinColumn(name = "round_id")
+    )
+    private List<TournamentRound> rounds = new ArrayList<>();
 
     @ManyToMany
     @JoinTable(
