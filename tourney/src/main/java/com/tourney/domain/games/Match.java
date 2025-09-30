@@ -21,6 +21,7 @@ public class Match {
     private LocalDateTime startTime;
     private int gameDurationMinutes;
     private LocalDateTime resultSubmissionDeadline;
+    private Integer tableNumber;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "round_id")

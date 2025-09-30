@@ -23,6 +23,7 @@ public class Tournament {
     private String name;
     private LocalDate startDate;
     private int numberOfRounds;
+    private int roundDurationMinutes;
 
     @OneToOne
     @JoinColumn(name = "game_system_id")
