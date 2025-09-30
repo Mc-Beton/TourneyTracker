@@ -2,6 +2,7 @@ package com.tourney.service.tournament;
 
 import com.tourney.domain.games.Match;
 import com.tourney.domain.player.PlayerStats;
+import com.tourney.domain.scores.Score;
 import com.tourney.domain.tournament.Tournament;
 import com.tourney.domain.tournament.TournamentRound;
 import com.tourney.domain.user.User;
@@ -19,7 +20,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class TournamentPairingService {
+public class SubsequentRoundPairingService {
     private final TournamentRepository tournamentRepository;
     private final MatchRepository matchRepository;
     private final ScoreRepository scoreRepository;
@@ -39,6 +40,74 @@ public class TournamentPairingService {
     private Tournament getTournament(Long tournamentId) {
         return tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new RuntimeException("Nie znaleziono turnieju o ID: " + tournamentId));
+    }
+
+    private List<PlayerStats> getRankedPlayers(Tournament tournament) {
+        // Pobierz statystyki graczy
+        List<PlayerStats> playerStats = calculatePlayerStats(tournament);
+
+        // Sortuj graczy według wyników (najpierw wygrane, potem punkty)
+        playerStats.sort((p1, p2) -> {
+            if (p1.getWins() != p2.getWins()) {
+                return Integer.compare(p2.getWins(), p1.getWins());
+            }
+            return Long.compare(p2.getTotalPoints(), p1.getTotalPoints());
+        });
+
+        return playerStats;
+    }
+
+    private Set<String> getPreviousPairings(Tournament tournament) {
+        return tournament.getRounds().stream()
+                .flatMap(round -> round.getMatches().stream())
+                .map(match -> {
+                    if (match.getPlayer1() == null || match.getPlayer2() == null) {
+                        return null;
+                    }
+                    return createPairingKey(match.getPlayer1().getId(), match.getPlayer2().getId());
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+    }
+
+    private String createPairingKey(Long player1Id, Long player2Id) {
+        return Math.min(player1Id, player2Id) + "-" + Math.max(player1Id, player2Id);
+    }
+
+    private boolean havePlayed(Set<String> previousPairings, Long player1Id, Long player2Id) {
+        return previousPairings.contains(createPairingKey(player1Id, player2Id));
+    }
+
+    private List<PlayerStats> calculatePlayerStats(Tournament tournament) {
+        Map<Long, PlayerStats> statsMap = new HashMap<>();
+
+        // Inicjalizacja statystyk dla wszystkich graczy
+        tournament.getParticipants().forEach(user ->
+                statsMap.put(user.getId(), new PlayerStats(user))
+        );
+
+        // Obliczanie wyników z wszystkich rund
+        tournament.getRounds().stream()
+                .flatMap(round -> round.getMatches().stream())
+                .forEach(match -> {
+                    if (match.getMatchResult() != null) {
+                        Long winnerId = match.getMatchResult().getWinnerId();
+                        if (winnerId != null) {
+                            statsMap.get(winnerId).incrementWins();
+                        }
+                    }
+                });
+
+        // Dodawanie punktów
+        scoreRepository.findAllByMatchRound_Match_TournamentId(tournament.getId())
+                .forEach(score -> {
+                    PlayerStats stats = statsMap.get(score.getUser().getId());
+                    if (stats != null) {
+                        stats.addPoints(score.getScore());
+                    }
+                });
+
+        return new ArrayList<>(statsMap.values());
     }
 
     private TournamentRound findTournamentRound(Tournament tournament, int roundNumber) {
@@ -177,120 +246,5 @@ public class TournamentPairingService {
         byeMatch.setStartTime(LocalDateTime.now());
         byeMatch.setGameDurationMinutes(round.getTournament().getRoundDurationMinutes());
         return byeMatch;
-    }
-
-    public List<Match> createFirstRoundPairings(Long tournamentId) {
-        Tournament tournament = tournamentRepository.findById(tournamentId)
-                .orElseThrow(() -> new RuntimeException("Nie znaleziono turnieju o ID: " + tournamentId));
-
-        List<User> players = new ArrayList<>(tournament.getParticipants());
-        if (players.size() < 2) {
-            throw new RuntimeException("Za mało graczy do utworzenia par (minimum 2 graczy)");
-        }
-
-        // Losowe mieszanie graczy
-        Collections.shuffle(players);
-
-        List<Match> matches = new ArrayList<>();
-        TournamentRound firstRound = tournament.getRounds().stream()
-                .filter(round -> round.getRoundNumber() == 1)
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException("Nie znaleziono pierwszej rundy turnieju"));
-
-        // Tworzenie par i przydzielanie stołów
-        for (int i = 0; i < players.size() - 1; i += 2) {
-            Match match = new Match();
-            match.setPlayer1(players.get(i));
-            match.setPlayer2(players.get(i + 1));
-            match.setTournamentRound(firstRound);
-            match.setStartTime(LocalDateTime.now());
-        
-            // Ustawianie numeru stołu
-            match.setTableNumber((i / 2) + 1);
-            match.setGameDurationMinutes(firstRound.getTournament().getRoundDurationMinutes());
-        
-            matches.add(match);
-        }
-
-        // Obsługa nieparzystej liczby graczy
-        if (players.size() % 2 != 0) {
-            Match byeMatch = new Match();
-            byeMatch.setPlayer1(players.get(players.size() - 1));
-            byeMatch.setTournamentRound(firstRound);
-            byeMatch.setStartTime(LocalDateTime.now());
-            byeMatch.setTableNumber(matches.size() + 1); // ostatni stół dla bye
-            byeMatch.setGameDurationMinutes(firstRound.getTournament().getRoundDurationMinutes());
-            matches.add(byeMatch);
-        }
-
-        return matchRepository.saveAll(matches);
-    }
-
-    private List<PlayerStats> getRankedPlayers(Tournament tournament) {
-        // Pobierz statystyki graczy
-        List<PlayerStats> playerStats = calculatePlayerStats(tournament);
-        
-        // Sortuj graczy według wyników (najpierw wygrane, potem punkty)
-        playerStats.sort((p1, p2) -> {
-            if (p1.getWins() != p2.getWins()) {
-                return Integer.compare(p2.getWins(), p1.getWins());
-            }
-            return Long.compare(p2.getTotalPoints(), p1.getTotalPoints());
-        });
-
-        return playerStats;
-    }
-
-    private Set<String> getPreviousPairings(Tournament tournament) {
-        return tournament.getRounds().stream()
-                .flatMap(round -> round.getMatches().stream())
-                .map(match -> {
-                    if (match.getPlayer1() == null || match.getPlayer2() == null) {
-                        return null;
-                    }
-                    return createPairingKey(match.getPlayer1().getId(), match.getPlayer2().getId());
-                })
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-    }
-
-    private String createPairingKey(Long player1Id, Long player2Id) {
-        return Math.min(player1Id, player2Id) + "-" + Math.max(player1Id, player2Id);
-    }
-
-    private boolean havePlayed(Set<String> previousPairings, Long player1Id, Long player2Id) {
-        return previousPairings.contains(createPairingKey(player1Id, player2Id));
-    }
-
-    private List<PlayerStats> calculatePlayerStats(Tournament tournament) {
-        Map<Long, PlayerStats> statsMap = new HashMap<>();
-
-        // Inicjalizacja statystyk dla wszystkich graczy
-        tournament.getParticipants().forEach(user -> 
-            statsMap.put(user.getId(), new PlayerStats(user))
-        );
-
-        // Obliczanie wyników z wszystkich rund
-        tournament.getRounds().stream()
-                .flatMap(round -> round.getMatches().stream())
-                .forEach(match -> {
-                    if (match.getMatchResult() != null) {
-                        Long winnerId = match.getMatchResult().getWinnerId();
-                        if (winnerId != null) {
-                            statsMap.get(winnerId).incrementWins();
-                        }
-                    }
-                });
-
-        // Dodawanie punktów
-        scoreRepository.findAllByMatchRound_Match_TournamentId(tournament.getId())
-                .forEach(score -> {
-                    PlayerStats stats = statsMap.get(score.getUser().getId());
-                    if (stats != null) {
-                        stats.addPoints(score.getScore());
-                    }
-                });
-
-        return new ArrayList<>(statsMap.values());
     }
 }
