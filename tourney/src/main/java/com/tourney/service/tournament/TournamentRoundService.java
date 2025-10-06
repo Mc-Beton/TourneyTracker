@@ -6,7 +6,6 @@ import com.tourney.domain.games.RoundStatus;
 import com.tourney.domain.tournament.Tournament;
 import com.tourney.domain.tournament.TournamentRound;
 import com.tourney.dto.rounds.RoundCompletionSummaryDTO;
-import com.tourney.exception.RoundNotCompletedException;
 import com.tourney.exception.TournamentException;
 import com.tourney.exception.TournamentNotFoundException;
 import com.tourney.repository.games.MatchRepository;

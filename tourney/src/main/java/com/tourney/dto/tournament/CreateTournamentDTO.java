@@ -2,41 +2,49 @@ package com.tourney.dto.tournament;
 
 import com.tourney.domain.scores.ScoreType;
 import com.tourney.domain.scores.ScoringSystem;
+import lombok.Builder;
 import lombok.Data;
 
 import jakarta.validation.constraints.*;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Set;
 
 @Data
+@Builder
 public class CreateTournamentDTO {
-    @NotBlank(message = "Nazwa turnieju nie może być pusta")
+    @NotBlank(message = "Nazwa turnieju jest wymagana")
     private String name;
     
+    private String description;
+    
     @NotNull(message = "Data rozpoczęcia jest wymagana")
-    @Future(message = "Data rozpoczęcia musi być w przyszłości")
     private LocalDate startDate;
     
-    @Min(value = 1, message = "Liczba rund musi być większa od 0")
+    private LocalDate endDate;
+    
+    @Min(value = 1, message = "Minimalna liczba rund to 1")
     private int numberOfRounds;
     
-    @Min(value = 90, message = "Czas trwania rundy musi być co najmniej 90 minut")
+    @Min(value = 15, message = "Minimalna długość rundy to 15 minut")
     private int roundDurationMinutes;
     
-    @NotNull(message = "ID systemu gry jest wymagane")
+    @NotNull(message = "System gry jest wymagany")
     private Long gameSystemId;
-
-    @NotNull(message = "System punktacji jest wymagany")
+    
+    private TournamentType type = TournamentType.SWISS;
+    
+    private Integer maxParticipants;
+    
+    private LocalDateTime registrationDeadline;
+    
+    private String location;
+    private String venue;
+    
+    // Pola związane z systemem punktacji
     private ScoringSystem scoringSystem;
-
-    @NotEmpty(message = "Przynajmniej jeden typ punktacji musi być wybrany")
     private Set<ScoreType> enabledScoreTypes;
-
     private boolean requireAllScoreTypes;
-
-    @Min(value = 0, message = "Minimalna liczba punktów nie może być ujemna")
     private Integer minScore;
-
-    @Min(value = 0, message = "Maksymalna liczba punktów nie może być ujemna")
     private Integer maxScore;
 }

@@ -6,6 +6,7 @@ import com.tourney.domain.tournament.TournamentRound;
 import com.tourney.domain.tournament.TournamentScoring;
 import com.tourney.domain.user.User;
 import com.tourney.dto.tournament.CreateTournamentDTO;
+import com.tourney.dto.tournament.TournamentStatus;
 import com.tourney.dto.tournament.UpdateTournamentDTO;
 import com.tourney.repository.systems.GameSystemRepository;
 import com.tourney.repository.tournament.TournamentRepository;
@@ -38,11 +39,19 @@ public class TournamentManagementService {
 
         Tournament tournament = new Tournament();
         tournament.setName(dto.getName());
+        tournament.setDescription(dto.getDescription());
         tournament.setStartDate(dto.getStartDate());
+        tournament.setEndDate(dto.getEndDate());
         tournament.setNumberOfRounds(dto.getNumberOfRounds());
         tournament.setRoundDurationMinutes(dto.getRoundDurationMinutes());
         tournament.setGameSystem(gameSystem);
         tournament.setOrganizer(organizer);
+        tournament.setType(dto.getType());
+        tournament.setMaxParticipants(dto.getMaxParticipants());
+        tournament.setRegistrationDeadline(dto.getRegistrationDeadline());
+        tournament.setLocation(dto.getLocation());
+        tournament.setVenue(dto.getVenue());
+        tournament.setStatus(TournamentStatus.DRAFT);
         tournament.setRounds(createInitialRounds(tournament));
 
         // Tworzenie i konfiguracja systemu punktacji
@@ -57,6 +66,7 @@ public class TournamentManagementService {
 
         return tournamentRepository.save(tournament);
     }
+
 
 
     public Tournament updateTournament(Long tournamentId, UpdateTournamentDTO dto) {
