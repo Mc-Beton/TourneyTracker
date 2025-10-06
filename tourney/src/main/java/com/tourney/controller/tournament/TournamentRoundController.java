@@ -1,6 +1,7 @@
-package com.tourney.controller;
+package com.tourney.controller.tournament;
 
 import com.tourney.domain.games.Match;
+import com.tourney.dto.rounds.RoundCompletionSummaryDTO;
 import com.tourney.dto.rounds.RoundStartResponseDTO;
 import com.tourney.service.games.MatchConversionService;
 import com.tourney.service.tournament.SubsequentRoundPairingService;
@@ -60,4 +61,23 @@ public class TournamentRoundController {
 
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/{roundNumber}/complete")
+    public ResponseEntity<RoundCompletionSummaryDTO> completeRound(
+            @PathVariable Long tournamentId,
+            @PathVariable int roundNumber
+    ) {
+        RoundCompletionSummaryDTO summary = tournamentRoundService.completeRound(tournamentId, roundNumber);
+        return ResponseEntity.ok(summary);
+    }
+
+    @GetMapping("/{roundNumber}/status")
+    public ResponseEntity<RoundCompletionSummaryDTO> getRoundStatus(
+            @PathVariable Long tournamentId,
+            @PathVariable int roundNumber
+    ) {
+        RoundCompletionSummaryDTO summary = tournamentRoundService.getRoundStatus(tournamentId, roundNumber);
+        return ResponseEntity.ok(summary);
+    }
+
 }

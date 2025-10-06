@@ -1,8 +1,7 @@
-package com.tourney.controller;
+package com.tourney.controller.tournament;
 
 import com.tourney.domain.user.User;
 import com.tourney.dto.complex.UserTournamentMatchesDTO;
-import com.tourney.dto.complex.UserTournamentStatsDTO;
 import com.tourney.service.tournament.TournamentUserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

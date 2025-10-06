@@ -38,6 +38,9 @@ public class Match {
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
     private List<MatchRound> rounds = new ArrayList<>();
 
+    @Enumerated(EnumType.STRING)
+    private MatchStatus status = MatchStatus.SCHEDULED;
+
     @Embedded
     private MatchResult matchResult;
 }

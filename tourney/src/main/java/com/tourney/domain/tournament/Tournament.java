@@ -48,4 +48,8 @@ public class Tournament {
             inverseJoinColumns = @JoinColumn(name = "user_id")
     )
     private List<User> participants = new ArrayList<>(); // Lista uczestników
+
+    @OneToOne(mappedBy = "tournament", cascade = CascadeType.ALL)
+    private TournamentScoring tournamentScoring;
+
 }
