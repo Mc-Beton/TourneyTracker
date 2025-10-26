@@ -1,13 +1,20 @@
 package com.tourney.service.player;
 
 import com.tourney.domain.games.Match;
+import com.tourney.domain.games.MatchRound;
 import com.tourney.domain.games.MatchStatus;
+import com.tourney.domain.scores.Score;
+import com.tourney.domain.scores.ScoreType;
 import com.tourney.domain.tournament.Tournament;
+import com.tourney.dto.games.MatchResultConfirmationDTO;
 import com.tourney.dto.matches.CurrentMatchDTO;
 import com.tourney.dto.matches.MatchStatusDTO;
 import com.tourney.dto.player.OpponentStatusDTO;
+import com.tourney.dto.scores.RoundScoreDTO;
 import com.tourney.dto.tournament.ActiveTournamentDTO;
+import com.tourney.exception.MatchOperationException;
 import com.tourney.exception.TournamentException;
+import com.tourney.exception.domain.MatchErrorCode;
 import com.tourney.repository.games.MatchRepository;
 import com.tourney.repository.scores.ScoreRepository;
 import com.tourney.repository.tournament.TournamentRepository;
@@ -18,10 +25,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.lang.MatchException;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
-import static com.tourney.exception.TournamentErrorCode.TOURNAMENT_NOT_FOUND;
+import static com.tourney.exception.TournamentErrorCode.*;
+import static com.tourney.exception.domain.MatchErrorCode.*;
 
 
 @Service
@@ -33,7 +43,7 @@ public class PlayerMatchService {
     private final UserRepository userRepository;
     private final ScoreRepository scoreRepository;
 
-    private Match getCurrentMatchForPlayer(Tournament tournament, Long playerId) {
+    public Match getCurrentMatchForPlayer(Tournament tournament, Long playerId) {
         return matchRepository.findByTournamentAndPlayer(
                 tournament.getId(), 
                 playerId, 
@@ -41,7 +51,7 @@ public class PlayerMatchService {
         );
     }
 
-    private String getOpponentName(Match match, Long playerId) {
+    public String getOpponentName(Match match, Long playerId) {
         if (match.getPlayer1().getId().equals(playerId)) {
             return match.getPlayer2().getName();
         }
@@ -72,30 +82,31 @@ public class PlayerMatchService {
     }
 
     private void validatePlayerInMatch(Match match, Long playerId) {
-        if (!match.isPlayerInMatch(playerId)) {
-            throw new MatchException(PLAYER_NOT_IN_MATCH, 
-                "Gracz nie jest uczestnikiem tego meczu");
+        if (!playerId.equals(match.getPlayer1().getId()) &&
+                !playerId.equals(match.getPlayer2().getId())) {
+            throw new MatchOperationException(MatchErrorCode.PLAYER_NOT_IN_MATCH);
         }
     }
 
     private void validateResultsSubmitted(Match match) {
-        if (!match.areResultsSubmitted()) {
-            throw new MatchException(RESULTS_NOT_SUBMITTED, 
-                "Wyniki meczu nie zostały jeszcze wprowadzone");
+        if (match.getMatchResult() == null ||
+                match.getMatchResult().getSubmittedById() == null) {
+            throw new MatchOperationException(MatchErrorCode.RESULTS_NOT_SUBMITTED);
         }
     }
+
 
     private List<RoundScoreDTO> getRoundScores(Match match, Long playerId) {
         List<MatchRound> rounds = match.getRounds();
         return rounds.stream()
                 .map(round -> {
-                    Score playerScore = scoreRepository.findByMatchRoundAndPlayer(
-                            round.getId(), 
+                    Score playerScore = scoreRepository.findByMatchRoundAndPlayerId(
+                            round,
                             playerId
                     );
-                    Score opponentScore = scoreRepository.findByMatchRoundAndPlayer(
-                            round.getId(), 
-                            match.getOpponentId(playerId)
+                    Score opponentScore = scoreRepository.findByMatchRoundAndPlayerId(
+                            round,
+                            getOpponentId(match, playerId)
                     );
                     
                     return RoundScoreDTO.builder()
@@ -103,7 +114,6 @@ public class PlayerMatchService {
                             .playerScore(convertScore(playerScore))
                             .opponentScore(convertScore(opponentScore))
                             .isSubmitted(playerScore != null)
-                            .isConfirmed(round.isConfirmed())
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -113,7 +123,7 @@ public class PlayerMatchService {
         if (score == null) {
             return Collections.emptyMap();
         }
-        return score.getScores();
+        return Map.of(score.getScoreType(), score.getScore().intValue());
     }
 
     public List<ActiveTournamentDTO> getActiveTournaments(Long playerId) {
@@ -141,7 +151,7 @@ public class PlayerMatchService {
 
         Match match = getCurrentMatchForPlayer(tournament, playerId);
         if (match == null) {
-            throw new MatchException(MATCH_NOT_FOUND, 
+            throw new MatchOperationException(MATCH_NOT_FOUND,
                 "Nie znaleziono aktywnego meczu dla gracza w tym turnieju");
         }
 
@@ -150,11 +160,9 @@ public class PlayerMatchService {
                 .opponentName(getOpponentName(match, playerId))
                 .status(match.getStatus())
                 .startTime(match.getStartTime())
-                .endTime(match.getEndTime())
+                .endTime(match.getGameEndTime())
                 .isReady(match.isPlayerReady(playerId))
                 .opponentReady(match.isOpponentReady(playerId))
-                .resultsSubmitted(match.areResultsSubmitted())
-                .resultsConfirmed(match.areResultsConfirmed())
                 .rounds(getRoundScores(match, playerId))
                 .build();
     }
@@ -162,8 +170,7 @@ public class PlayerMatchService {
     @Transactional
     public MatchStatusDTO reportPlayerReady(Long matchId, Long playerId) {
         Match match = matchRepository.findById(matchId)
-                .orElseThrow(() -> new MatchException(MATCH_NOT_FOUND, 
-                    "Nie znaleziono meczu"));
+                .orElseThrow(() -> new MatchOperationException(MATCH_NOT_FOUND));
 
         validatePlayerInMatch(match, playerId);
         
@@ -189,8 +196,7 @@ public class PlayerMatchService {
     @Transactional
     public MatchResultConfirmationDTO confirmOpponentResult(Long matchId, Long playerId) {
         Match match = matchRepository.findById(matchId)
-                .orElseThrow(() -> new MatchException(MATCH_NOT_FOUND, 
-                    "Nie znaleziono meczu"));
+                .orElseThrow(() -> new MatchOperationException(MATCH_NOT_FOUND));
 
         validatePlayerInMatch(match, playerId);
         validateResultsSubmitted(match);
@@ -199,7 +205,7 @@ public class PlayerMatchService {
         
         if (match.areBothPlayersConfirmed()) {
             match.setStatus(MatchStatus.COMPLETED);
-            match.setEndTime(LocalDateTime.now());
+            match.setGameEndTime(LocalDateTime.now());
         }
 
         match = matchRepository.save(match);
@@ -207,14 +213,13 @@ public class PlayerMatchService {
         return MatchResultConfirmationDTO.builder()
                 .matchId(match.getId())
                 .isConfirmed(true)
-                .completionTime(match.getEndTime())
+                .completionTime(match.getGameEndTime())
                 .build();
     }
 
     public OpponentStatusDTO getOpponentStatus(Long matchId, Long playerId) {
         Match match = matchRepository.findById(matchId)
-                .orElseThrow(() -> new MatchException(MATCH_NOT_FOUND, 
-                    "Nie znaleziono meczu"));
+                .orElseThrow(() -> new MatchOperationException(MATCH_NOT_FOUND));
 
         validatePlayerInMatch(match, playerId);
         Long opponentId = match.getOpponentId(playerId);
@@ -223,7 +228,13 @@ public class PlayerMatchService {
                 .opponentName(getOpponentName(match, playerId))
                 .isReady(match.isPlayerReady(opponentId))
                 .hasSubmittedResults(match.hasPlayerSubmittedResults(opponentId))
-                .lastActivity(match.getLastActivityTime(opponentId))
                 .build();
     }
+
+    private Long getOpponentId(Match match, Long playerId) {
+        return match.getPlayer1().getId().equals(playerId)
+                ? match.getPlayer2().getId()
+                : match.getPlayer1().getId();
+    }
+
 }

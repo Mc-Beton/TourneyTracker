@@ -1,8 +1,11 @@
 package com.tourney.mapper.tournament;
 
+import com.tourney.domain.games.Match;
 import com.tourney.domain.tournament.Tournament;
 import com.tourney.domain.user.User;
+import com.tourney.dto.tournament.ActiveTournamentDTO;
 import com.tourney.dto.tournament.TournamentResponseDTO;
+import com.tourney.service.player.PlayerMatchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -11,6 +14,10 @@ import java.util.stream.Collectors;
 @Component
 @RequiredArgsConstructor
 public class TournamentMapper {
+
+    private final PlayerMatchService playerMatchService;
+    private final ActionRequiredChecker actionRequiredChecker;
+
 
     public TournamentResponseDTO toDto(Tournament tournament) {
         if (tournament == null) {
@@ -35,5 +42,22 @@ public class TournamentMapper {
                 .maxScore(tournament.getTournamentScoring().getMaxScore())
                 .build();
     }
+
+    public ActiveTournamentDTO toActiveDTO(Tournament tournament, Long playerId) {
+        Match currentMatch = playerMatchService.getCurrentMatchForPlayer(tournament, playerId);
+
+        return ActiveTournamentDTO.builder()
+                .tournamentId(tournament.getId())
+                .tournamentName(tournament.getName())
+                .currentRound(tournament.getCurrentRound())
+                .roundStartTime(tournament.getCurrentRoundStartTime())
+                .roundEndTime(tournament.getCurrentRoundEndTime())
+                .currentMatchStatus(currentMatch != null ? currentMatch.getStatus() : null)
+                .opponent(currentMatch != null ?
+                        playerMatchService.getOpponentName(currentMatch, playerId) : null)
+                .requiresAction(actionRequiredChecker.checkIfActionRequired(tournament, playerId))
+                .build();
+    }
+
 }
 

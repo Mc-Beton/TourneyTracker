@@ -1,6 +1,7 @@
 package com.tourney.controller.player;
 
 import com.tourney.domain.user.User;
+import com.tourney.dto.games.MatchResultConfirmationDTO;
 import com.tourney.dto.matches.CurrentMatchDTO;
 import com.tourney.dto.matches.MatchStatusDTO;
 import com.tourney.dto.player.OpponentStatusDTO;

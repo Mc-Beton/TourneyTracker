@@ -23,4 +23,12 @@ public class GlobalExceptionHandler {
                 HttpStatus.CONFLICT
         );
     }
+
+    @ExceptionHandler(MatchNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleMatchNotFound(MatchNotFoundException ex) {
+        return new ResponseEntity<>(
+                new ErrorResponse(ex.getMessage()),
+                HttpStatus.NOT_FOUND
+        );
+    }
 }
