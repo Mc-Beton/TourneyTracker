@@ -6,6 +6,7 @@ import com.tourney.domain.user.User;
 import com.tourney.dto.tournament.ActiveTournamentDTO;
 import com.tourney.dto.tournament.TournamentResponseDTO;
 import com.tourney.service.player.PlayerMatchService;
+import com.tourney.util.ActionRequiredChecker;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -16,8 +17,6 @@ import java.util.stream.Collectors;
 public class TournamentMapper {
 
     private final PlayerMatchService playerMatchService;
-    private final ActionRequiredChecker actionRequiredChecker;
-
 
     public TournamentResponseDTO toDto(Tournament tournament) {
         if (tournament == null) {
@@ -55,7 +54,7 @@ public class TournamentMapper {
                 .currentMatchStatus(currentMatch != null ? currentMatch.getStatus() : null)
                 .opponent(currentMatch != null ?
                         playerMatchService.getOpponentName(currentMatch, playerId) : null)
-                .requiresAction(actionRequiredChecker.checkIfActionRequired(tournament, playerId))
+                .requiresAction(ActionRequiredChecker.isActionRequired(tournament, playerId))
                 .build();
     }
 

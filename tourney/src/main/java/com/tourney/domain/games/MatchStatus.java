@@ -10,6 +10,6 @@ public enum MatchStatus {
     SCHEDULED,
     IN_PROGRESS,
     COMPLETED,
-    CANCELLED
+    WAITING_CONFIRMATION, CANCELLED
 }
 

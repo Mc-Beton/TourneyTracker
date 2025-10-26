@@ -1,8 +1,10 @@
 package com.tourney.dto.tournament;
 
 import com.tourney.domain.scores.ScoreType;
+import com.tourney.domain.scores.TieBreaker;
 import lombok.Data;
 
+import java.util.List;
 import java.util.Map;
 
 @Data

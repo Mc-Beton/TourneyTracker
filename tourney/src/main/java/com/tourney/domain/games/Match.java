@@ -52,6 +52,7 @@ public class Match {
     private boolean player1Confirmed;
     private boolean player2Confirmed;
     private boolean resultsConfirmed;
+    private boolean isCompleted;
 
     public boolean isPlayerReady(Long playerId) {
         if (player1.getId().equals(playerId)) {

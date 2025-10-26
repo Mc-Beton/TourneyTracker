@@ -81,9 +81,7 @@ public class TournamentUserService {
 
         List<RoundScoreDTO> roundScores = match.getRounds().stream()
                 .map(round -> RoundScoreDTO.builder()
-                        .roundId(round.getId())
                         .roundNumber(round.getRoundNumber())
-                        .score(userRoundScores.getOrDefault(round.getId(), 0L))
                         .build())
                 .collect(Collectors.toList());
 
