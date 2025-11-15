@@ -1,6 +1,5 @@
 package com.tourney.domain.games;
 
-import com.tourney.domain.scores.Score;
 import com.tourney.domain.scores.ScoreType;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Embeddable;
@@ -15,7 +14,7 @@ import java.util.Map;
 @Embeddable
 @Getter
 @Setter
-public class PlayerMatchResult {
+public class PlayerScore {
     @ElementCollection
     private Map<ScoreType, Double> scores = new HashMap<>();
     

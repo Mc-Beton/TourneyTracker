@@ -18,7 +18,12 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
 springdoc:
-  api-docs:
-    path: /api-docs
   swagger-ui:
     path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+  packages-to-scan: com.tourney.user_service.controller
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+
+
