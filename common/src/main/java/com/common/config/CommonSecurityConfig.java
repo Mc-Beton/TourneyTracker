@@ -1,39 +1,35 @@
-package com.tourney.user_service.config;
+package com.common.config;
 
-import com.tourney.user_service.security.JwtAuthenticationFilter;
+import com.common.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @RequiredArgsConstructor
- // Priorytet nr 2
-public class SecurityConfig {
-    
+public class CommonSecurityConfig {
+
     private final JwtAuthenticationFilter jwtAuthFilter;
 
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-    
-    @Bean
-    @Order(2)
-    public SecurityFilterChain userSecurityFilterChain(HttpSecurity http) throws Exception { // UNIKALNA NAZWA
+    @Order(Ordered.LOWEST_PRECEDENCE)
+    public SecurityFilterChain commonSecurityFilterChain(HttpSecurity http) throws Exception { // UNIKALNA NAZWA
         http
-            .securityMatcher("/api/users/**", "/auth/**") // OBSŁUGUJ TYLKO TO
             .cors(Customizer.withDefaults())
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/auth/**").permitAll()
+                .requestMatchers("/v3/api-docs/**", 
+                               "/swagger-ui/**", 
+                               "/swagger-ui.html", 
+                               "/swagger-resources/**", 
+                               "/health/**").permitAll()
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session

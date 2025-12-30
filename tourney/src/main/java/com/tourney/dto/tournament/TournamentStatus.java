@@ -2,6 +2,7 @@ package com.tourney.dto.tournament;
 
 public enum TournamentStatus {
     DRAFT("W przygotowaniu"),
+    ACTIVE("Aktywny"),
     IN_PROGRESS("W trakcie"),
     COMPLETED("Zakończony"),
     CANCELLED("Anulowany");

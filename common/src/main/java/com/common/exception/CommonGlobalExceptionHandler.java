@@ -8,7 +8,7 @@ import org.springframework.web.context.request.WebRequest;
 import java.time.LocalDateTime;
 
 @ControllerAdvice
-public class GlobalExceptionHandler {
+public class CommonGlobalExceptionHandler {
     
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleGlobalException(Exception ex, WebRequest request) {

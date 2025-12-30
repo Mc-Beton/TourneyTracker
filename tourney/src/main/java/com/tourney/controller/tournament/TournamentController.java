@@ -15,12 +15,26 @@ import com.tourney.domain.user.User;
 
 import jakarta.validation.Valid;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/tournaments")
 @RequiredArgsConstructor
 public class TournamentController {
     private final TournamentManagementService tournamentManagementService;
     private final TournamentMapper tournamentMapper;
+
+    @GetMapping
+    public ResponseEntity<Iterable<TournamentResponseDTO>> getAllTournaments() {
+        List<Tournament> tournamentList = tournamentManagementService.getActiveTournaments();
+        return new ResponseEntity<>(tournamentMapper.getDtloList(tournamentList), HttpStatus.OK);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<TournamentResponseDTO> getTournamentById(@PathVariable Long id) {
+        Tournament tournament = tournamentManagementService.getTournamentById(id);
+        return ResponseEntity.ok(tournamentMapper.toDto(tournament));
+    }
 
     @PostMapping
     public ResponseEntity<TournamentResponseDTO> createTournament(

@@ -67,8 +67,6 @@ public class TournamentManagementService {
         return tournamentRepository.save(tournament);
     }
 
-
-
     public Tournament updateTournament(Long tournamentId, UpdateTournamentDTO dto) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new RuntimeException("Nie znaleziono turnieju o ID: " + tournamentId));
@@ -80,6 +78,10 @@ public class TournamentManagementService {
         tournament.setRoundDurationMinutes(dto.getRoundDurationMinutes());
 
         return tournamentRepository.save(tournament);
+    }
+
+    public List<Tournament> getActiveTournaments() {
+        return tournamentRepository.findByStatusIn(List.of(TournamentStatus.ACTIVE, TournamentStatus.IN_PROGRESS, TournamentStatus.COMPLETED));
     }
 
     @Transactional
@@ -162,5 +164,10 @@ public class TournamentManagementService {
         if (tournament.getRounds().stream().anyMatch(round -> !round.getMatches().isEmpty())) {
             throw new RuntimeException("Nie można usunąć turnieju, który ma już rozegrane mecze");
         }
+    }
+
+    public Tournament getTournamentById(Long id) {
+        return tournamentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Nie znaleziono turnieju o ID: " + id));
     }
 }

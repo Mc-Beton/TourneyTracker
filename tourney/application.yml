@@ -1,11 +1,11 @@
 server:
   port: 8080
   servlet:
-    context-path: /api/tournaments
+    context-path: /
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/tourney
+    url: jdbc:postgresql://localhost:5432/tourney?currentSchema=tourney_schema
     username: postgres
     password: postgres
   jpa:
@@ -16,6 +16,10 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_schema: tourney_schema
+  flyway:
+    default-schema: tourney_schema
+    create-schemas: true
 
 springdoc:
   api-docs:

@@ -1,4 +1,4 @@
-package com.common.config;
+package com.tourney.user_service.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,10 +14,16 @@ public class CorsConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
         
-        config.addAllowedOrigin("http://localhost:5173");
-        config.addAllowedOrigin("http://localhost:3000");
+        config.addAllowedOrigin("http://localhost:3000"); // dla React
+        config.addAllowedOrigin("http://localhost:5173"); // dla Angular
+        
+        // Zezwól na wszystkie standardowe metody HTTP
         config.addAllowedMethod("*");
+        
+        // Zezwól na przesyłanie nagłówków autoryzacji i zawartości
         config.addAllowedHeader("*");
+        
+        // Zezwól na przesyłanie credentials (np. ciasteczek)
         config.setAllowCredentials(true);
         
         source.registerCorsConfiguration("/**", config);

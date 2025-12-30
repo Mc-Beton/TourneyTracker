@@ -12,7 +12,7 @@ import java.util.List;
 
 @Repository
 public interface ScoreRepository extends JpaRepository<Score, Long> {
-    List<Score> findAllByMatchRound_Match_TournamentId(Long tournamentId);
+
     void deleteByMatchRoundAndUser(MatchRound matchRound, User user);
 
     @Query("""
@@ -25,5 +25,12 @@ public interface ScoreRepository extends JpaRepository<Score, Long> {
             @Param("playerId") Long playerId
     );
 
-
+    // To zapytanie zastępuje wadliwą metodę automatyczną
+    @Query("SELECT s FROM Score s " +
+            "JOIN s.matchRound mr " +
+            "JOIN mr.match m " +
+            "JOIN m.tournamentRound tr " +
+            "JOIN tr.tournament t " +
+            "WHERE t.id = :tournamentId")
+    List<Score> findAllByTournamentId(@Param("tournamentId") Long tournamentId);
 }

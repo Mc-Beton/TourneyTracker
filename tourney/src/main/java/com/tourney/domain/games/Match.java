@@ -44,7 +44,8 @@ public class Match {
     @Enumerated(EnumType.STRING)
     private MatchStatus status = MatchStatus.SCHEDULED;
 
-    @Embedded
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "match_result_id")
     private MatchResult matchResult;
 
     private boolean player1Ready;

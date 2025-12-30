@@ -10,6 +10,7 @@ import com.tourney.util.ActionRequiredChecker;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Component
@@ -58,5 +59,10 @@ public class TournamentMapper {
                 .build();
     }
 
+    public List<TournamentResponseDTO> getDtloList(List<Tournament> tournamentList) {
+        return tournamentList.stream()
+                .map(this::toDto)
+                .collect(Collectors.toList());
+    }
 }
 

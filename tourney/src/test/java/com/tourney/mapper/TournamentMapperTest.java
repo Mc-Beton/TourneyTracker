@@ -1,5 +1,6 @@
 package com.tourney.mapper;
 
+import com.tourney.domain.systems.GameSystem;
 import com.tourney.domain.systems.StandardGameSystem;
 import com.tourney.domain.tournament.Tournament;
 import com.tourney.domain.tournament.TournamentScoring;
@@ -35,11 +36,9 @@ class TournamentMapperTest {
         tournament.setNumberOfRounds(3);
         tournament.setRoundDurationMinutes(60);
 
-        StandardGameSystem gameSystem = new StandardGameSystem();
+        GameSystem gameSystem = new GameSystem();
         gameSystem.setId(1L);
         gameSystem.setName("Standard System");
-        gameSystem.setBasePointsForWin(3);
-        gameSystem.setBasePointsForDraw(1);
         tournament.setGameSystem(gameSystem);
 
         User organizer = new User();

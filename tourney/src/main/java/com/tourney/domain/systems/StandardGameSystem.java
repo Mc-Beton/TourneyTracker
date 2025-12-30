@@ -4,10 +4,9 @@ import jakarta.persistence.Entity;
 import lombok.Getter;
 import lombok.Setter;
 
-@Entity
 @Getter
 @Setter
-public class StandardGameSystem extends GameSystem {
+public class StandardGameSystem {
     // Możemy dodać specyficzne pola dla tego systemu gry
     private int basePointsForWin;
     private int basePointsForDraw;

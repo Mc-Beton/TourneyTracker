@@ -99,7 +99,7 @@ public class SubsequentRoundPairingService {
                 });
 
         // Dodawanie punktów
-        scoreRepository.findAllByMatchRound_Match_TournamentId(tournament.getId())
+        scoreRepository.findAllByTournamentId(tournament.getId())
                 .forEach(score -> {
                     PlayerStats stats = statsMap.get(score.getUser().getId());
                     if (stats != null) {

@@ -1,7 +1,6 @@
 package com.tourney.domain.games;
 
-import jakarta.persistence.ElementCollection;
-import jakarta.persistence.Embeddable;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -9,15 +8,25 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
-@Embeddable
 @Getter
 @Setter
+@Entity
 public class MatchResult {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
     private Long submittedById;
     private LocalDateTime submissionTime;
     private Long winnerId;
 
-    @ElementCollection
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinTable(
+        name = "match_result_player_scores",
+        joinColumns = @JoinColumn(name = "match_result_id"),
+        inverseJoinColumns = @JoinColumn(name = "player_score_id")
+    )
+    @MapKeyColumn(name = "player_id") // Kolumna przechowująca klucz mapy (Long playerId)
     private Map<Long, PlayerScore> playerScores = new HashMap<>();
 
     public void addPlayerResult(Long playerId, PlayerScore result) {

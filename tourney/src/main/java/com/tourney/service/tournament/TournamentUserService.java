@@ -35,7 +35,7 @@ public class TournamentUserService {
                 .collect(Collectors.toList());
 
         // Pobierz wszystkie wyniki dla meczy w turnieju
-        List<Score> allScores = scoreRepository.findAllByMatchRound_Match_TournamentId(tournamentId);
+        List<Score> allScores = scoreRepository.findAllByTournamentId(tournamentId);
 
         // Grupuj wyniki według użytkownika i rundy meczu
         Map<Long, Map<Long, Long>> roundScores = allScores.stream()
