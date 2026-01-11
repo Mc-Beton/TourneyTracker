@@ -35,12 +35,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             if (token != null && jwtService.isTokenValid(token)) {
                 String username = jwtService.extractUsername(token);
+                Long userId = jwtService.extractUserId(token);
 
                 if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                    // Tworzymy podstawowe uwierzytelnienie - szczegółowe role będą dodawane w konkretnych modułach
+                    UserPrincipal principal = new UserPrincipal(userId, username);
+
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(
-                                    username,
+                                    principal,
                                     null,
                                     Collections.singleton(new SimpleGrantedAuthority("ROLE_USER"))
                             );
@@ -50,9 +52,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             }
         } catch (Exception e) {
-            log.error("Nie można ustawić uwierzytelnienia użytkownika: ", e);
+            log.error("Błąd uwierzytelniania: ", e);
         }
-
         filterChain.doFilter(request, response);
     }
 

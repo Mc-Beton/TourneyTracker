@@ -1,11 +1,13 @@
 package com.tourney.service.tournament;
 
 import com.tourney.domain.games.Match;
+import com.tourney.domain.participant.TournamentParticipant;
 import com.tourney.domain.scores.Score;
 import com.tourney.domain.tournament.Tournament;
 import com.tourney.domain.user.User;
 import com.tourney.dto.complex.UserTournamentMatchesDTO;
 import com.tourney.dto.matches.MatchDetailsDTO;
+import com.tourney.dto.participant.TournamentParticipantDTO;
 import com.tourney.dto.scores.RoundScoreDTO;
 import com.tourney.repository.games.MatchRepository;
 import com.tourney.repository.scores.ScoreRepository;
@@ -47,9 +49,11 @@ public class TournamentUserService {
                         )
                 ));
 
-        return tournament.getParticipants().stream()
+        return tournament.getParticipantLinks().stream()
+                .map(TournamentParticipant::getUser)
                 .map(user -> createUserMatchesDTO(user, tournamentMatches, roundScores))
                 .collect(Collectors.toList());
+
     }
 
     private UserTournamentMatchesDTO createUserMatchesDTO(
@@ -97,7 +101,59 @@ public class TournamentUserService {
 
     public List<User> getUsersByTournamentId(Long tournamentId) {
         return tournamentRepository.findById(tournamentId)
-                .map(Tournament::getParticipants)
+                .map(t -> t.getParticipantLinks().stream()
+                        .map(TournamentParticipant::getUser)
+                        .toList())
                 .orElseThrow(() -> new RuntimeException("Nie znaleziono turnieju o ID: " + tournamentId));
+    }
+
+
+    public List<TournamentParticipantDTO> getParticipants(Long tournamentId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new RuntimeException("Nie znaleziono turnieju o ID: " + tournamentId));
+
+        return tournament.getParticipantLinks().stream()
+                .map(link -> TournamentParticipantDTO.builder()
+                        .userId(link.getUser().getId())
+                        .name(link.getUser().getName())
+                        .email(link.getUser().getEmail())
+                        .confirmed(link.isConfirmed())
+                        .build())
+                .toList();
+    }
+
+    public List<TournamentParticipantDTO> getParticipantsByConfirmation(Long tournamentId, boolean confirmed) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new RuntimeException("Nie znaleziono turnieju o ID: " + tournamentId));
+
+        return tournament.getParticipantLinks().stream()
+                .filter(link -> link.isConfirmed() == confirmed)
+                .map(link -> TournamentParticipantDTO.builder()
+                        .userId(link.getUser().getId())
+                        .name(link.getUser().getName())
+                        .email(link.getUser().getEmail())
+                        .confirmed(link.isConfirmed())
+                        .build())
+                .toList();
+    }
+
+    @Transactional
+    public Tournament setParticipantConfirmation(Long tournamentId, Long userId, boolean confirmed, Long currentUserId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new RuntimeException("Nie znaleziono turnieju o ID: " + tournamentId));
+
+        if (tournament.getOrganizer() == null || tournament.getOrganizer().getId() == null
+                || !tournament.getOrganizer().getId().equals(currentUserId)) {
+            throw new RuntimeException("Brak uprawnień: tylko organizator może potwierdzać uczestników.");
+        }
+
+        TournamentParticipant link = tournament.getParticipantLinks().stream()
+                .filter(pl -> pl.getUser() != null && pl.getUser().getId() != null && pl.getUser().getId().equals(userId))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Użytkownik o ID: " + userId + " nie jest zapisany do tego turnieju."));
+
+        link.setConfirmed(confirmed);
+
+        return tournamentRepository.save(tournament);
     }
 }

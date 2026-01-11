@@ -1,5 +1,6 @@
 package com.tourney.controller.tournament;
 
+import com.common.security.UserPrincipal;
 import com.tourney.domain.tournament.Tournament;
 import com.tourney.dto.tournament.CreateTournamentDTO;
 import com.tourney.dto.tournament.TournamentResponseDTO;
@@ -39,7 +40,7 @@ public class TournamentController {
     @PostMapping
     public ResponseEntity<TournamentResponseDTO> createTournament(
             @Valid @RequestBody CreateTournamentDTO createTournamentDTO,
-            @AuthenticationPrincipal User currentUser) {
+            @AuthenticationPrincipal UserPrincipal currentUser) {
         Tournament tournament = tournamentManagementService.createTournament(createTournamentDTO, currentUser.getId());
         return new ResponseEntity<>(tournamentMapper.toDto(tournament), HttpStatus.CREATED);
     }
@@ -47,16 +48,23 @@ public class TournamentController {
     @PutMapping("/{id}")
     public ResponseEntity<TournamentResponseDTO> updateTournament(
             @PathVariable Long id,
-            @Valid @RequestBody UpdateTournamentDTO updateTournamentDTO) {
-        Tournament tournament = tournamentManagementService.updateTournament(id, updateTournamentDTO);
+            @Valid @RequestBody UpdateTournamentDTO updateTournamentDTO,
+            @AuthenticationPrincipal UserPrincipal currentUser
+    ) {
+        Tournament tournament = tournamentManagementService.updateTournament(id, updateTournamentDTO, currentUser.getId());
         return ResponseEntity.ok(tournamentMapper.toDto(tournament));
     }
 
+
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteTournament(@PathVariable Long id) {
-        tournamentManagementService.deleteTournament(id);
+    public ResponseEntity<Void> deleteTournament(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal currentUser
+    ) {
+        tournamentManagementService.deleteTournament(id, currentUser.getId());
         return ResponseEntity.noContent().build();
     }
+
 
     @PostMapping("/{tournamentId}/participants/{userId}")
     public ResponseEntity<TournamentResponseDTO> addParticipant(
@@ -73,4 +81,37 @@ public class TournamentController {
         Tournament tournament = tournamentManagementService.removeParticipant(tournamentId, userId);
         return ResponseEntity.ok(tournamentMapper.toDto(tournament));
     }
+
+    @GetMapping("/mine")
+    public ResponseEntity<List<TournamentResponseDTO>> getMyCreatedTournaments(
+            @AuthenticationPrincipal UserPrincipal currentUser
+    ) {
+        Long organizerId = currentUser.getId();
+        List<Tournament> tournaments = tournamentManagementService.getTournamentsCreatedBy(organizerId);
+        List<TournamentResponseDTO> dtos = tournaments.stream()
+                .map(tournamentMapper::toDto)
+                .toList();
+
+        return ResponseEntity.ok(dtos);
+    }
+
+    @GetMapping("/{id}/edit")
+    public ResponseEntity<CreateTournamentDTO> getTournamentEditForm(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal currentUser
+    ) {
+        CreateTournamentDTO form = tournamentManagementService.getTournamentEditForm(id, currentUser.getId());
+        return ResponseEntity.ok(form);
+    }
+
+    @PatchMapping("/{id}/active")
+    public ResponseEntity<TournamentResponseDTO> setTournamentActive(
+            @PathVariable Long id,
+            @RequestParam boolean active,
+            @AuthenticationPrincipal UserPrincipal currentUser
+    ) {
+        Tournament tournament = tournamentManagementService.setTournamentActive(id, active, currentUser.getId());
+        return ResponseEntity.ok(tournamentMapper.toDto(tournament));
+    }
+
 }

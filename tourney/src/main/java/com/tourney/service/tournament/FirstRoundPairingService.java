@@ -1,6 +1,7 @@
 package com.tourney.service.tournament;
 
 import com.tourney.domain.games.Match;
+import com.tourney.domain.participant.TournamentParticipant;
 import com.tourney.domain.tournament.Tournament;
 import com.tourney.domain.tournament.TournamentRound;
 import com.tourney.domain.user.User;
@@ -27,21 +28,30 @@ public class FirstRoundPairingService {
                 .orElseThrow(() -> new RuntimeException("Nie znaleziono turnieju o ID: " + tournamentId));
 
         validatePlayerCount(tournament);
-        
-        List<User> players = new ArrayList<>(tournament.getParticipants());
-        Collections.shuffle(players);
+
+        List<User> confirmedPlayers = tournament.getParticipantLinks().stream()
+                .filter(TournamentParticipant::isConfirmed)
+                .map(TournamentParticipant::getUser)
+                .toList();
+
+        Collections.shuffle(confirmedPlayers);
         
         TournamentRound firstRound = findFirstRound(tournament);
-        List<Match> matches = createPairings(players, firstRound);
+        List<Match> matches = createPairings(confirmedPlayers, firstRound);
         
         return matchRepository.saveAll(matches);
     }
 
     private void validatePlayerCount(Tournament tournament) {
-        if (tournament.getParticipants().size() < 2) {
-            throw new RuntimeException("Za mało graczy do utworzenia par (minimum 2 graczy)");
+        long confirmedCount = tournament.getParticipantLinks().stream()
+                .filter(TournamentParticipant::isConfirmed)
+                .count();
+
+        if (confirmedCount < 2) {
+            throw new RuntimeException("Za mało potwierdzonych graczy do utworzenia par (minimum 2 graczy)");
         }
     }
+
 
     private TournamentRound findFirstRound(Tournament tournament) {
         return tournament.getRounds().stream()

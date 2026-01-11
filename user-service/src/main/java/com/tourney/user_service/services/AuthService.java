@@ -4,8 +4,12 @@ import com.tourney.user_service.domain.User;
 import com.tourney.user_service.domain.dto.LoginDTO;
 import com.tourney.user_service.repository.UserRepository;
 import com.tourney.user_service.util.JwtUtil;
+import io.jsonwebtoken.Jwts;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -25,7 +29,18 @@ public class AuthService {
         if (userOptional.isEmpty() || !passwordEncoder.matches(loginDTO.getPassword(), userOptional.get().getPassword())) {
             throw new RuntimeException("Invalid credentials");
         }
-        return jwtUtil.generateToken(userOptional.get().getEmail());
+        return jwtUtil.generateToken(userOptional.get());
     }
+
+    public String generateToken(User user) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", user.getId()); // Dodajemy ID do tokena!
+
+        return Jwts.builder()
+                .setClaims(claims)
+                .setSubject(user.getEmail())
+                .compact();
+    }
+
 }
 

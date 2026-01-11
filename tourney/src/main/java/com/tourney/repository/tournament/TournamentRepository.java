@@ -13,10 +13,18 @@ import java.util.List;
 @Repository
 public interface TournamentRepository extends JpaRepository<Tournament, Long> {
 
-    @Query("SELECT t FROM Tournament t JOIN t.participants p WHERE p.id = :playerId " +
-           "AND t.status IN (com.tourney.dto.tournament.TournamentStatus.ACTIVE, " +
-           "com.tourney.dto.tournament.TournamentStatus.IN_PROGRESS)")
+    @Query("""
+           SELECT DISTINCT t
+           FROM Tournament t
+           JOIN t.participantLinks pl
+           WHERE pl.user.id = :playerId
+             AND t.status IN (com.tourney.dto.tournament.TournamentStatus.ACTIVE,
+                              com.tourney.dto.tournament.TournamentStatus.IN_PROGRESS)
+           """)
+
     List<Tournament> findActiveForPlayer(@Param("playerId") Long playerId);
 
     List<Tournament> findByStatusIn(Collection<TournamentStatus> statuses);
+
+    List<Tournament> findByOrganizerId(Long organizerId);
 }

@@ -1,17 +1,19 @@
 package com.tourney.domain.user;
 
-import lombok.Getter;
+import jakarta.persistence.*;
+import lombok.*;
 
+@Entity
+@Table(name = "user_role_dict") // Ta nazwa musi być spójna z user-service
 @Getter
-public enum UserRole {
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class UserRole {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    PARTICIPANT(2),
-    ORGANIZER(1);
-
-    private final int typeId;
-
-    UserRole(int typeId) {
-        this.typeId = typeId;
-    }
-
+    @Column(unique = true, nullable = false)
+    private String name;
 }

@@ -5,20 +5,20 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/tourney?currentSchema=user_schema
+    url: jdbc:postgresql://localhost:5432/tourney?currentSchema=tourney_schema
     username: postgres
     password: postgres
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: none
     show-sql: true
     properties:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
-        default_schema: user_schema
+        default_schema: tourney_schema
   flyway:
-    default-schema: user_schema
+    default-schema: tourney_schema
     create-schemas: true
 
 springdoc:
@@ -29,3 +29,9 @@ springdoc:
   packages-to-scan: com.tourney.user_service.controller
   default-consumes-media-type: application/json
   default-produces-media-type: application/json
+
+security:
+  jwt:
+    # Base64-encoded secret; dla HS256 minimum 32 bajty po dekodowaniu (>=256 bitów)
+    secret-base64: "9f3c8a2d1b7e4c6f8a9d0c1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a"
+    algorithm: "HS256"

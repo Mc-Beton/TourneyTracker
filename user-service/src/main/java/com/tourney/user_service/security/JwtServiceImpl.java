@@ -44,9 +44,15 @@ public class JwtServiceImpl implements JwtService {
                 .compact();
     }
 
-    private <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
+    @Override
+    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
+    }
+
+    @Override
+    public Long extractUserId(String token) {
+        return 0L;
     }
 
     private Claims extractAllClaims(String token) {

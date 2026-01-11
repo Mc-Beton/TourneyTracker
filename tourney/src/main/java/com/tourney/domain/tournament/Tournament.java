@@ -1,5 +1,6 @@
 package com.tourney.domain.tournament;
 
+import com.tourney.domain.participant.TournamentParticipant;
 import com.tourney.domain.systems.GameSystem;
 import com.tourney.domain.user.User;
 import com.tourney.dto.tournament.TournamentStatus;
@@ -55,13 +56,8 @@ public class Tournament {
     @JoinColumn(name = "organizer_id")
     private User organizer;
 
-    @ManyToMany
-    @JoinTable(
-            name = "tournament_participants",
-            joinColumns = @JoinColumn(name = "tournament_id"),
-            inverseJoinColumns = @JoinColumn(name = "user_id")
-    )
-    private List<User> participants = new ArrayList<>();
+    @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<TournamentParticipant> participantLinks = new ArrayList<>();
 
     @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("roundNumber ASC")
@@ -85,9 +81,9 @@ public class Tournament {
 
     public boolean canRegister() {
         return registrationOpen && 
-               (maxParticipants == null || participants.size() < maxParticipants) &&
+               (maxParticipants == null || participantLinks.size() < maxParticipants) &&
                (registrationDeadline == null || LocalDateTime.now().isBefore(registrationDeadline)) &&
-               status == TournamentStatus.DRAFT;
+               status == TournamentStatus.ACTIVE;
     }
 
     public boolean isActive() {

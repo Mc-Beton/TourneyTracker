@@ -1,5 +1,6 @@
 package com.tourney.service.tournament;
 
+import com.tourney.domain.participant.TournamentParticipant;
 import com.tourney.domain.systems.GameSystem;
 import com.tourney.domain.tournament.Tournament;
 import com.tourney.domain.tournament.TournamentRound;
@@ -67,10 +68,17 @@ public class TournamentManagementService {
         return tournamentRepository.save(tournament);
     }
 
-    public Tournament updateTournament(Long tournamentId, UpdateTournamentDTO dto) {
+    public Tournament updateTournament(Long tournamentId, UpdateTournamentDTO dto, Long currentUserId) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new RuntimeException("Nie znaleziono turnieju o ID: " + tournamentId));
 
+        if (tournament.getOrganizer() == null || tournament.getOrganizer().getId() == null
+                || !tournament.getOrganizer().getId().equals(currentUserId)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN,
+                    "Brak uprawnień do edycji tego turnieju"
+            );
+        }
         validateTournamentUpdate(tournament, dto);
 
         tournament.setName(dto.getName());
@@ -80,50 +88,72 @@ public class TournamentManagementService {
         return tournamentRepository.save(tournament);
     }
 
-    public List<Tournament> getActiveTournaments() {
-        return tournamentRepository.findByStatusIn(List.of(TournamentStatus.ACTIVE, TournamentStatus.IN_PROGRESS, TournamentStatus.COMPLETED));
-    }
 
     @Transactional
-    public void deleteTournament(Long tournamentId) {
+    public void deleteTournament(Long tournamentId, Long currentUserId) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new RuntimeException("Nie znaleziono turnieju o ID: " + tournamentId));
 
+        if (tournament.getOrganizer() == null || tournament.getOrganizer().getId() == null
+                || !tournament.getOrganizer().getId().equals(currentUserId)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN,
+                    "Brak uprawnień do usunięcia tego turnieju"
+            );
+        }
         validateTournamentDeletion(tournament);
         tournamentRepository.delete(tournament);
     }
+
 
     @Transactional
     public Tournament addParticipant(Long tournamentId, Long userId) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new RuntimeException("Nie znaleziono turnieju o ID: " + tournamentId));
 
+        if (!tournament.canRegister()) {
+            throw new RuntimeException("Rejestracja do turnieju jest zamknięta");
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Nie znaleziono użytkownika o ID: " + userId));
 
-        if (tournament.getParticipants().contains(user)) {
+        boolean alreadyJoined = tournament.getParticipantLinks().stream()
+                .anyMatch(link -> link.getUserId() != null && link.getUserId().equals(userId));
+
+        if (alreadyJoined) {
             throw new RuntimeException("Użytkownik jest już uczestnikiem turnieju");
         }
 
-        tournament.getParticipants().add(user);
+        TournamentParticipant link = new TournamentParticipant();
+        link.setTournamentId(tournament.getId());
+        link.setUserId(user.getId());
+        link.setTournament(tournament);
+        link.setUser(user);
+        link.setConfirmed(false); // startowo brak potwierdzenia
+
+        tournament.getParticipantLinks().add(link);
+
         return tournamentRepository.save(tournament);
     }
+
 
     @Transactional
     public Tournament removeParticipant(Long tournamentId, Long userId) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new RuntimeException("Nie znaleziono turnieju o ID: " + tournamentId));
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Nie znaleziono użytkownika o ID: " + userId));
+        // znajdź link i usuń go (orphanRemoval=true zrobi resztę)
+        TournamentParticipant linkToRemove = tournament.getParticipantLinks().stream()
+                .filter(link -> link.getUserId() != null && link.getUserId().equals(userId))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Użytkownik nie jest uczestnikiem turnieju"));
 
-        if (!tournament.getParticipants().contains(user)) {
-            throw new RuntimeException("Użytkownik nie jest uczestnikiem turnieju");
-        }
+        tournament.getParticipantLinks().remove(linkToRemove);
 
-        tournament.getParticipants().remove(user);
         return tournamentRepository.save(tournament);
     }
+
 
     private List<TournamentRound> createInitialRounds(Tournament tournament) {
         List<TournamentRound> rounds = new ArrayList<>();
@@ -169,5 +199,71 @@ public class TournamentManagementService {
     public Tournament getTournamentById(Long id) {
         return tournamentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Nie znaleziono turnieju o ID: " + id));
+    }
+
+    @Transactional(readOnly = true)
+    public List<Tournament> getTournamentsCreatedBy(Long organizerId) {
+        return tournamentRepository.findByOrganizerId(organizerId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Tournament> getActiveTournaments() {
+        return tournamentRepository.findByStatusIn(List.of(
+                TournamentStatus.ACTIVE,
+                TournamentStatus.IN_PROGRESS,
+                TournamentStatus.COMPLETED
+        ));
+    }
+
+    @Transactional(readOnly = true)
+    public CreateTournamentDTO getTournamentEditForm(Long tournamentId, Long currentUserId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new RuntimeException("Nie znaleziono turnieju o ID: " + tournamentId));
+
+        if (tournament.getOrganizer() == null || tournament.getOrganizer().getId() == null
+                || !tournament.getOrganizer().getId().equals(currentUserId)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN,
+                    "Brak uprawnień do podglądu/edycji tego turnieju"
+            );
+        }
+
+        return CreateTournamentDTO.builder()
+                .name(tournament.getName())
+                .description(tournament.getDescription())
+                .startDate(tournament.getStartDate())
+                .endDate(tournament.getEndDate())
+                .numberOfRounds(tournament.getNumberOfRounds())
+                .roundDurationMinutes(tournament.getRoundDurationMinutes())
+                .gameSystemId(tournament.getGameSystem() != null ? tournament.getGameSystem().getId() : null)
+                .type(tournament.getType())
+                .maxParticipants(tournament.getMaxParticipants())
+                .registrationDeadline(tournament.getRegistrationDeadline())
+                .location(tournament.getLocation())
+                .venue(tournament.getVenue())
+                .scoringSystem(tournament.getTournamentScoring() != null ? tournament.getTournamentScoring().getScoringSystem() : null)
+                .enabledScoreTypes(tournament.getTournamentScoring() != null ? tournament.getTournamentScoring().getEnabledScoreTypes() : null)
+                .requireAllScoreTypes(tournament.getTournamentScoring() != null && Boolean.TRUE.equals(tournament.getTournamentScoring().isRequireAllScoreTypes()))
+                .minScore(tournament.getTournamentScoring() != null ? tournament.getTournamentScoring().getMinScore() : null)
+                .maxScore(tournament.getTournamentScoring() != null ? tournament.getTournamentScoring().getMaxScore() : null)
+                .build();
+    }
+
+    public Tournament setTournamentActive(Long tournamentId, boolean active, Long currentUserId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new RuntimeException("Nie znaleziono turnieju o ID: " + tournamentId));
+
+        if (tournament.getOrganizer() == null || tournament.getOrganizer().getId() == null
+                || !tournament.getOrganizer().getId().equals(currentUserId)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN,
+                    "Brak uprawnień do zmiany aktywności tego turnieju"
+            );
+        }
+
+        // Minimalna logika przełączania statusu (możesz ją rozbudować o walidacje)
+        tournament.setStatus(active ? TournamentStatus.ACTIVE : TournamentStatus.DRAFT);
+
+        return tournamentRepository.save(tournament);
     }
 }

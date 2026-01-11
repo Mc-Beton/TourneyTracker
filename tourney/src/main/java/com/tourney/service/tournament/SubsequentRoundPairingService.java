@@ -1,6 +1,7 @@
 package com.tourney.service.tournament;
 
 import com.tourney.domain.games.Match;
+import com.tourney.domain.participant.TournamentParticipant;
 import com.tourney.domain.player.PlayerStats;
 import com.tourney.domain.scores.Score;
 import com.tourney.domain.tournament.Tournament;
@@ -81,19 +82,21 @@ public class SubsequentRoundPairingService {
     private List<PlayerStats> calculatePlayerStats(Tournament tournament) {
         Map<Long, PlayerStats> statsMap = new HashMap<>();
 
-        // Inicjalizacja statystyk dla wszystkich graczy
-        tournament.getParticipants().forEach(user ->
-                statsMap.put(user.getId(), new PlayerStats(user))
-        );
+        tournament.getParticipantLinks().stream()
+                .filter(TournamentParticipant::isConfirmed)
+                .map(TournamentParticipant::getUser)
+                .forEach(user -> statsMap.put(user.getId(), new PlayerStats(user)));
 
-        // Obliczanie wyników z wszystkich rund
         tournament.getRounds().stream()
                 .flatMap(round -> round.getMatches().stream())
                 .forEach(match -> {
                     if (match.getMatchResult() != null) {
                         Long winnerId = match.getMatchResult().getWinnerId();
                         if (winnerId != null) {
-                            statsMap.get(winnerId).incrementWins();
+                            PlayerStats winnerStats = statsMap.get(winnerId);
+                            if (winnerStats != null) { // np. gdy wygrał ktoś niepotwierdzony / usunięty
+                                winnerStats.incrementWins();
+                            }
                         }
                     }
                 });

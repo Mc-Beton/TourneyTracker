@@ -1,6 +1,7 @@
 package com.tourney.mapper.tournament;
 
 import com.tourney.domain.games.Match;
+import com.tourney.domain.participant.TournamentParticipant;
 import com.tourney.domain.tournament.Tournament;
 import com.tourney.domain.user.User;
 import com.tourney.dto.tournament.ActiveTournamentDTO;
@@ -32,9 +33,10 @@ public class TournamentMapper {
                 .roundDurationMinutes(tournament.getRoundDurationMinutes())
                 .gameSystemId(tournament.getGameSystem().getId())
                 .organizerId(tournament.getOrganizer().getId())
-                .participantIds(tournament.getParticipants().stream()
-                        .map(User::getId)
+                .participantIds(tournament.getParticipantLinks().stream()
+                        .map(TournamentParticipant::getUserId)
                         .collect(Collectors.toList()))
+                .status(tournament.getStatus())
                 .scoringSystem(tournament.getTournamentScoring().getScoringSystem())
                 .enabledScoreTypes(tournament.getTournamentScoring().getEnabledScoreTypes())
                 .requireAllScoreTypes(tournament.getTournamentScoring().isRequireAllScoreTypes())
@@ -65,4 +67,3 @@ public class TournamentMapper {
                 .collect(Collectors.toList());
     }
 }
-

@@ -3,12 +3,11 @@ package com.tourney.domain.user;
 import com.tourney.domain.tournament.Tournament;
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 @Entity
+@Table(name = "users")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -20,14 +19,20 @@ public class User {
 
     private String name;
 
-    @ElementCollection(targetClass = UserRole.class, fetch = FetchType.EAGER)
-    @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
-    @Enumerated(EnumType.STRING)
+    @Column(unique = true, nullable = false)
+    private String email;
+
+    @Column(nullable = false)
+    private String password;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "user_roles", // Tabela łącząca
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
     private Set<UserRole> roles = new HashSet<>();
 
     @OneToMany(mappedBy = "organizer", cascade = CascadeType.ALL)
     private Set<Tournament> organizedTournaments = new HashSet<>();
-
-    @ManyToMany(mappedBy = "participants")
-    private Set<Tournament> joinedTournaments = new HashSet<>();
 }

@@ -15,15 +15,19 @@ public class ActionRequiredChecker {
             return false;
         }
 
-        // Sprawdź czy turniej jest aktywny
         if (tournament.getStatus() != TournamentStatus.IN_PROGRESS) {
             return false;
         }
 
-        // Sprawdź czy użytkownik jest uczestnikiem turnieju
-        if (!tournament.getParticipants().contains(userId)) {
+        boolean isParticipant = tournament.getParticipantLinks().stream()
+                .anyMatch(link -> link.getUserId() != null
+                        && link.getUserId().equals(userId)
+                        && link.isConfirmed());
+
+        if (!isParticipant) {
             return false;
         }
+
 
         // Pobierz aktualną rundę z listy rund
         TournamentRound currentRound = tournament.getRounds().stream()

@@ -7,7 +7,6 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 @SpringBootApplication(scanBasePackages = {
-        "com.tourney.common",
         "com.tourney.user_service",
         "com.tourney.user_service.config"  // dodana linia
 })
@@ -16,7 +15,6 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
         "com.tourney.user_service.domain"
 })
 @EnableJpaRepositories({
-        "com.tourney.common.repository",
         "com.tourney.user_service.repository"
 })
 public class UserServiceApplication {

@@ -10,7 +10,7 @@ spring:
     password: postgres
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: none
     show-sql: true
     properties:
       hibernate:
@@ -26,3 +26,14 @@ springdoc:
     path: /api-docs
   swagger-ui:
     path: /swagger-ui.html
+
+security:
+  jwt:
+    # Base64-encoded secret; dla HS256 minimum 32 bajty po dekodowaniu (>=256 bitów)
+    secret-base64: "9f3c8a2d1b7e4c6f8a9d0c1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a"
+    algorithm: "HS256"
+
+logging:
+  level:
+    org.springframework.security: DEBUG
+    com.common.security: DEBUG

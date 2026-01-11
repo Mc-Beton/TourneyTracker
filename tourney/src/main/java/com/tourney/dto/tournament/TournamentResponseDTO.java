@@ -9,6 +9,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 
+import com.tourney.dto.tournament.TournamentStatus;
+
 @Data
 @Builder
 public class TournamentResponseDTO {
@@ -20,6 +22,8 @@ public class TournamentResponseDTO {
     private Long gameSystemId;
     private Long organizerId;
     private List<Long> participantIds;
+
+    private TournamentStatus status;
 
     // Dodane pola dotyczące punktacji
     private ScoringSystem scoringSystem;

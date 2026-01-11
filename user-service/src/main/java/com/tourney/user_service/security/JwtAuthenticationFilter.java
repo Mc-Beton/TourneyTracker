@@ -1,5 +1,6 @@
 package com.tourney.user_service.security;
 
+import com.common.security.UserPrincipal;
 import com.tourney.user_service.domain.User;
 import com.tourney.user_service.repository.UserRepository;
 import com.tourney.user_service.util.JwtUtil;
@@ -33,27 +34,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String token = extractToken(request);
 
-            if (token != null && jwtUtil.validateToken(token)) {
-                String email = jwtUtil.getUsernameFromToken(token);
-                Optional<User> userOptional = userRepository.findByEmail(email);
+            if (token != null && jwtUtil.isTokenValid(token)) {
+                String email = jwtUtil.extractUsername(token);
+                List<String> roles = jwtUtil.extractRoles(token); // nowa metoda w JwtUtil
+                Long userId = jwtUtil.extractUserId(token);      // nowa metoda w JwtUtil
 
-                if (userOptional.isPresent()) {
-                    User user = userOptional.get();
-                    
-                    // Konwertuj role użytkownika na GrantedAuthority
-                    List<SimpleGrantedAuthority> authorities = user.getRoles().stream()
-                            .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getName()))
-                            .collect(Collectors.toList());
+                if (email != null) {
+                    // Tworzymy Principal, który zawiera ID i Email
+                    UserPrincipal principal = new UserPrincipal(userId, email);
 
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(user, null, authorities);
-
-                    // Dodaj szczegóły żądania do autentykacji
-                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                            principal,
+                            null,
+                            roles.stream().map(r -> new SimpleGrantedAuthority("ROLE_" + r)).toList()
+                    );
+                    SecurityContextHolder.getContext().setAuthentication(auth);
                 }
             }
+
         } catch (Exception e) {
             logger.error("Nie można ustawić uwierzytelnienia użytkownika: {}", e);
         }
