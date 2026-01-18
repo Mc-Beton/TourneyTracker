@@ -1,15 +1,16 @@
 package com.tourney.domain.games;
 
-import com.tourney.domain.tournament.TournamentRound;
 import com.tourney.domain.user.User;
+import com.tourney.domain.tournament.TournamentRound;
 import com.tourney.exception.MatchOperationException;
 import com.tourney.exception.domain.MatchErrorCode;
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import lombok.*;
 import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
@@ -48,10 +49,17 @@ public class Match {
     @JoinColumn(name = "match_result_id")
     private MatchResult matchResult;
 
+    @OneToOne(mappedBy = "match", cascade = CascadeType.ALL, orphanRemoval = true)
+    private MatchDetails details;
+
+    /** Gotowość do rozpoczęcia gry */
     private boolean player1Ready;
     private boolean player2Ready;
+
+    /** Potwierdzenie wyników (nie mylić z ready) */
     private boolean player1Confirmed;
     private boolean player2Confirmed;
+
     private boolean resultsConfirmed;
     private boolean isCompleted;
 
@@ -59,18 +67,18 @@ public class Match {
         if (player1.getId().equals(playerId)) {
             return player1Ready;
         }
-        if (player2.getId().equals(playerId)) {
+        if (player2 != null && player2.getId().equals(playerId)) {
             return player2Ready;
         }
         throw new MatchOperationException(MatchErrorCode.PLAYER_NOT_IN_MATCH);
     }
 
     public boolean isOpponentReady(Long playerId) {
-        if (!player1.getId().equals(playerId)) {
-            return player1Ready;
+        if (player1.getId().equals(playerId)) {
+            return player2Ready; // jeśli player2 == null, to false (domyślnie)
         }
-        if (!player2.getId().equals(playerId)) {
-            return player2Ready;
+        if (player2 != null && player2.getId().equals(playerId)) {
+            return player1Ready;
         }
         throw new MatchOperationException(MatchErrorCode.PLAYER_NOT_IN_MATCH);
     }
@@ -83,16 +91,14 @@ public class Match {
         if (matchResult == null) {
             return false;
         }
-        // Jeśli przeciwnik wprowadził wyniki, a ten gracz jeszcze nie potwierdził
-        return matchResult.isSubmittedByOpponent(playerId) &&
-                !isPlayerConfirmed(playerId);
+        return matchResult.isSubmittedByOpponent(playerId) && !isPlayerConfirmed(playerId);
     }
 
     public boolean isPlayerConfirmed(Long playerId) {
         if (player1.getId().equals(playerId)) {
             return player1Confirmed;
         }
-        if (player2.getId().equals(playerId)) {
+        if (player2 != null && player2.getId().equals(playerId)) {
             return player2Confirmed;
         }
         throw new MatchOperationException(MatchErrorCode.PLAYER_NOT_IN_MATCH);
@@ -101,10 +107,13 @@ public class Match {
     public void setPlayerReady(Long playerId) {
         if (player1.getId().equals(playerId)) {
             player1Ready = true;
+            return;
         }
-        if (player2.getId().equals(playerId)) {
+        if (player2 != null && player2.getId().equals(playerId)) {
             player2Ready = true;
+            return;
         }
+        throw new MatchOperationException(MatchErrorCode.PLAYER_NOT_IN_MATCH);
     }
 
     public boolean areBothPlayersReady() {
@@ -114,10 +123,13 @@ public class Match {
     public void confirmResults(Long playerId) {
         if (player1.getId().equals(playerId)) {
             player1Confirmed = true;
+            return;
         }
-        if (player2.getId().equals(playerId)) {
+        if (player2 != null && player2.getId().equals(playerId)) {
             player2Confirmed = true;
+            return;
         }
+        throw new MatchOperationException(MatchErrorCode.PLAYER_NOT_IN_MATCH);
     }
 
     public boolean areBothPlayersConfirmed() {
@@ -126,9 +138,12 @@ public class Match {
 
     public long getOpponentId(Long playerId) {
         if (player1.getId().equals(playerId)) {
+            if (player2 == null) {
+                throw new MatchOperationException(MatchErrorCode.PLAYER_NOT_IN_MATCH);
+            }
             return player2.getId();
         }
-        if (player2.getId().equals(playerId)) {
+        if (player2 != null && player2.getId().equals(playerId)) {
             return player1.getId();
         }
         throw new MatchOperationException(MatchErrorCode.PLAYER_NOT_IN_MATCH);

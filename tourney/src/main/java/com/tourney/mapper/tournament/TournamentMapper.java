@@ -3,7 +3,6 @@ package com.tourney.mapper.tournament;
 import com.tourney.domain.games.Match;
 import com.tourney.domain.participant.TournamentParticipant;
 import com.tourney.domain.tournament.Tournament;
-import com.tourney.domain.user.User;
 import com.tourney.dto.tournament.ActiveTournamentDTO;
 import com.tourney.dto.tournament.TournamentResponseDTO;
 import com.tourney.service.player.PlayerMatchService;
@@ -31,11 +30,16 @@ public class TournamentMapper {
                 .startDate(tournament.getStartDate())
                 .numberOfRounds(tournament.getNumberOfRounds())
                 .roundDurationMinutes(tournament.getRoundDurationMinutes())
-                .gameSystemId(tournament.getGameSystem().getId())
+                .gameSystemId(tournament.getGameSystem() != null ? tournament.getGameSystem().getId() : null)
+                .gameSystemName(tournament.getGameSystem() != null ? tournament.getGameSystem().getName() : null)
                 .organizerId(tournament.getOrganizer().getId())
+                .organizerName(tournament.getOrganizer() != null ? tournament.getOrganizer().getName() : null)
                 .participantIds(tournament.getParticipantLinks().stream()
                         .map(TournamentParticipant::getUserId)
                         .collect(Collectors.toList()))
+                .location(tournament.getLocation())
+                .description(tournament.getDescription())
+                .maxParticipants(tournament.getMaxParticipants())
                 .status(tournament.getStatus())
                 .scoringSystem(tournament.getTournamentScoring().getScoringSystem())
                 .enabledScoreTypes(tournament.getTournamentScoring().getEnabledScoreTypes())

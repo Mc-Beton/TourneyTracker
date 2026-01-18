@@ -10,7 +10,9 @@ public enum MatchErrorCode {
     MATCH_ALREADY_STARTED("Match.007", "Mecz już się rozpoczął"),
     MATCH_ALREADY_FINISHED("Match.008", "Mecz już się zakończył"),
     RESULT_ALREADY_CONFIRMED("Match.009", "Wynik został już potwierdzony"),
-    INVALID_RESULT_CONFIRMATION("Match.010", "Nieprawidłowe potwierdzenie wyniku");
+    INVALID_RESULT_CONFIRMATION("Match.010", "Nieprawidłowe potwierdzenie wyniku"),
+    OPPONENT_NOT_AVAILABLE("Match.011", "Przeciwnik nie jest dostępny");
+
 
     private final String code;
     private final String defaultMessage;

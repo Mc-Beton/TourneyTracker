@@ -20,8 +20,13 @@ public class TournamentResponseDTO {
     private int numberOfRounds;
     private int roundDurationMinutes;
     private Long gameSystemId;
+    private String gameSystemName;
     private Long organizerId;
     private List<Long> participantIds;
+    private String location;
+    private String description;
+    private Integer maxParticipants;
+    private String organizerName;
 
     private TournamentStatus status;
 

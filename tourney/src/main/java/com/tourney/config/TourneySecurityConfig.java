@@ -27,7 +27,12 @@ public class TourneySecurityConfig {
             .cors(Customizer.withDefaults())        // Włącz CORS (korzysta z Twojego CorsConfig)
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/tournaments/**").permitAll() // Do testów pozwalamy na wszystko w tym zakresie
+                .requestMatchers("/api/tournaments/**").permitAll()
+                    .requestMatchers("/api/systems/**").permitAll()
+                    .requestMatchers("/api/player/**").permitAll()
+                    .requestMatchers("/api/scores/**").permitAll()
+                    .requestMatchers("/api/users/**").permitAll()
+                    .requestMatchers("/api/matches/**").permitAll()// Do testów pozwalamy na wszystko w tym zakresie
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session

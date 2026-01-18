@@ -14,10 +14,10 @@ public class ScoreController {
 
     @PostMapping("/round")
     public ResponseEntity<Void> submitRoundScores(
-            @RequestBody RoundScoreSubmissionDTO submissionDTO
+            @RequestBody RoundScoreSubmissionDTO submissionDTO,
+            @RequestHeader(name = "X-User-Id") Long currentUserId
     ) {
-        scoringService.submitRoundScores(submissionDTO);
+        scoringService.submitRoundScores(submissionDTO, currentUserId);
         return ResponseEntity.ok().build();
     }
 }
-

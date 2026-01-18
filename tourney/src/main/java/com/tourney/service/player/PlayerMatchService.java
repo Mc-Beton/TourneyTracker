@@ -19,6 +19,7 @@ import com.tourney.repository.games.MatchRepository;
 import com.tourney.repository.scores.ScoreRepository;
 import com.tourney.repository.tournament.TournamentRepository;
 import com.tourney.repository.user.UserRepository;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,7 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static com.tourney.exception.TournamentErrorCode.*;
@@ -44,8 +46,8 @@ public class PlayerMatchService {
 
     public Match getCurrentMatchForPlayer(Tournament tournament, Long playerId) {
         return matchRepository.findByTournamentAndPlayer(
-                tournament.getId(), 
-                playerId, 
+                tournament.getId(),
+                playerId,
                 tournament.getCurrentRound()
         );
     }
@@ -70,7 +72,7 @@ public class PlayerMatchService {
         }
 
         // Sprawdź czy gracz musi wprowadzić wyniki
-        if (currentMatch.getStatus() == MatchStatus.IN_PROGRESS 
+        if (currentMatch.getStatus() == MatchStatus.IN_PROGRESS
                 && !currentMatch.hasPlayerSubmittedResults(playerId)) {
             return true;
         }
@@ -107,7 +109,7 @@ public class PlayerMatchService {
                             round,
                             getOpponentId(match, playerId)
                     );
-                    
+
                     return RoundScoreDTO.builder()
                             .roundNumber(round.getRoundNumber())
                             .playerScore(convertScore(playerScore))
@@ -145,7 +147,7 @@ public class PlayerMatchService {
 
     public CurrentMatchDTO getCurrentMatch(Long tournamentId, Long playerId) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
-                .orElseThrow(() -> new TournamentException(TOURNAMENT_NOT_FOUND, 
+                .orElseThrow(() -> new TournamentException(TOURNAMENT_NOT_FOUND,
                     "Nie znaleziono turnieju"));
 
         Match match = getCurrentMatchForPlayer(tournament, playerId);
@@ -172,25 +174,32 @@ public class PlayerMatchService {
                 .orElseThrow(() -> new MatchOperationException(MATCH_NOT_FOUND));
 
         validatePlayerInMatch(match, playerId);
-        
-        match.setPlayerReady(playerId);
-        
-        // Jeśli obaj gracze są gotowi, rozpocznij mecz
-        if (match.areBothPlayersReady()) {
-            match.setStatus(MatchStatus.IN_PROGRESS);
-            match.setStartTime(LocalDateTime.now());
+
+        // nie pozwalamy zgłaszać ready po starcie
+        if (match.getStatus() == MatchStatus.IN_PROGRESS) {
+            throw new IllegalStateException("Nie można zmienić gotowości po rozpoczęciu rozgrywki.");
+        }
+
+        // hotseat: tylko player1 może zgłosić gotowość
+        boolean isHotseat = match.getPlayer2() == null;
+        if (isHotseat) {
+            match.setPlayer1Ready(true);
+            match.setPlayer2Ready(true);
+        } else {
+            match.setPlayerReady(playerId);
         }
 
         match = matchRepository.save(match);
 
         return MatchStatusDTO.builder()
                 .matchId(match.getId())
-                .status(match.getStatus())
+                .status(match.getStatus()) // nadal SCHEDULED aż do /start
                 .player1Ready(match.isPlayer1Ready())
                 .player2Ready(match.isPlayer2Ready())
                 .lastStatusUpdate(LocalDateTime.now())
                 .build();
     }
+
 
     @Transactional
     public MatchResultConfirmationDTO confirmOpponentResult(Long matchId, Long playerId) {
@@ -201,7 +210,7 @@ public class PlayerMatchService {
         validateResultsSubmitted(match);
 
         match.confirmResults(playerId);
-        
+
         if (match.areBothPlayersConfirmed()) {
             match.setStatus(MatchStatus.COMPLETED);
             match.setGameEndTime(LocalDateTime.now());
@@ -236,4 +245,46 @@ public class PlayerMatchService {
                 : match.getPlayer1().getId();
     }
 
+    public MatchStatusDTO startMatch(Long matchId, Long currentUserId) {
+        Match match = matchRepository.findById(matchId)
+                .orElseThrow(() -> new EntityNotFoundException("Match not found"));
+
+        boolean isP1 = match.getPlayer1() != null && Objects.equals(match.getPlayer1().getId(), currentUserId);
+        boolean isP2 = match.getPlayer2() != null && Objects.equals(match.getPlayer2().getId(), currentUserId);
+        if (!isP1 && !isP2) {
+            throw new IllegalArgumentException("Brak uprawnień do uruchomienia tej rozgrywki.");
+        }
+
+        // Nie można wystartować drugi raz
+        if (match.getStatus() == MatchStatus.IN_PROGRESS || match.getStartTime() != null) {
+            throw new IllegalStateException("Rozgrywka została już rozpoczęta.");
+        }
+
+        boolean isHotseat = match.getPlayer2() == null;
+        if (isHotseat) {
+            // wariant B: hotseat -> start bez wymogu ready, ale tylko player1
+            if (!isP1) {
+                throw new IllegalArgumentException("W trybie hotseat tylko gracz 1 może rozpocząć rozgrywkę.");
+            }
+        } else {
+            // 2 zarejestrowanych graczy: obaj muszą być ready
+            if (!match.areBothPlayersReady()) {
+                throw new IllegalStateException("Nie można rozpocząć: obaj gracze muszą zgłosić gotowość (ready).");
+            }
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        match.setStartTime(now);
+        match.setStatus(MatchStatus.IN_PROGRESS);
+
+        matchRepository.save(match);
+
+        return MatchStatusDTO.builder()
+                .matchId(match.getId())
+                .status(match.getStatus())
+                .player1Ready(match.isPlayer1Ready())
+                .player2Ready(match.isPlayer2Ready())
+                .lastStatusUpdate(now)
+                .build();
+    }
 }
