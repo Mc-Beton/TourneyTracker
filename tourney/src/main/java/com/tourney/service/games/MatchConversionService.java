@@ -1,7 +1,7 @@
 package com.tourney.service.games;
 
 import com.tourney.domain.games.Match;
-import com.tourney.domain.user.User;
+import com.common.domain.User;
 import com.tourney.dto.rounds.MatchInfo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

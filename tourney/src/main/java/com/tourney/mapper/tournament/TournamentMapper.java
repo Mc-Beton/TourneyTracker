@@ -24,6 +24,10 @@ public class TournamentMapper {
             return null;
         }
 
+        int confirmedCount = (int) tournament.getParticipantLinks().stream()
+                .filter(TournamentParticipant::isConfirmed)
+                .count();
+
         return TournamentResponseDTO.builder()
                 .id(tournament.getId())
                 .name(tournament.getName())
@@ -40,6 +44,8 @@ public class TournamentMapper {
                 .location(tournament.getLocation())
                 .description(tournament.getDescription())
                 .maxParticipants(tournament.getMaxParticipants())
+                .armyPointsLimit(tournament.getArmyPointsLimit())
+                .confirmedParticipantsCount(confirmedCount)
                 .status(tournament.getStatus())
                 .scoringSystem(tournament.getTournamentScoring().getScoringSystem())
                 .enabledScoreTypes(tournament.getTournamentScoring().getEnabledScoreTypes())

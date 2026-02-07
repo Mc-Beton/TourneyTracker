@@ -1,6 +1,6 @@
 package com.tourney.user_service.repository;
 
-import com.tourney.user_service.domain.UserRole;
+import com.common.domain.UserRole;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

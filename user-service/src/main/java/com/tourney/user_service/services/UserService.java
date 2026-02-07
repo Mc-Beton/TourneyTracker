@@ -1,7 +1,7 @@
 package com.tourney.user_service.services;
 
-import com.tourney.user_service.domain.User;
-import com.tourney.user_service.domain.UserRole;
+import com.common.domain.User;
+import com.common.domain.UserRole;
 import com.tourney.user_service.domain.dto.UserRegistrationDTO;
 import com.tourney.user_service.repository.UserRepository;
 import com.tourney.user_service.repository.UserRoleRepository;

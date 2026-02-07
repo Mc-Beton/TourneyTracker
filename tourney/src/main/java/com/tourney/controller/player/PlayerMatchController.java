@@ -3,7 +3,7 @@ package com.tourney.controller.player;
 import com.common.security.UserPrincipal;
 import com.tourney.domain.games.Match;
 import com.tourney.domain.games.MatchStatus;
-import com.tourney.domain.user.User;
+import com.common.domain.User;
 import com.tourney.dto.games.MatchResultConfirmationDTO;
 import com.tourney.dto.matches.CurrentMatchDTO;
 import com.tourney.dto.matches.MatchStatusDTO;

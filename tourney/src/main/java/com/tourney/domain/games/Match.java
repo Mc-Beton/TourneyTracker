@@ -1,7 +1,6 @@
 package com.tourney.domain.games;
 
-import com.tourney.domain.user.User;
-import com.tourney.domain.tournament.TournamentRound;
+import com.common.domain.User;
 import com.tourney.exception.MatchOperationException;
 import com.tourney.exception.domain.MatchErrorCode;
 import jakarta.persistence.*;
@@ -16,7 +15,9 @@ import java.util.List;
 @Getter
 @Setter
 @Table(name = "matches")
-public class Match {
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(name = "match_type", discriminatorType = DiscriminatorType.STRING)
+public abstract class Match {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -26,10 +27,6 @@ public class Match {
     private LocalDateTime resultSubmissionDeadline;
     private Integer tableNumber;
     private LocalDateTime gameEndTime;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "round_id")
-    private TournamentRound tournamentRound;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "player1_id")

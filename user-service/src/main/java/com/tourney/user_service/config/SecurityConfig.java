@@ -1,6 +1,6 @@
 package com.tourney.user_service.config;
 
-import com.tourney.user_service.security.JwtAuthenticationFilter;
+import com.common.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,7 +15,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @RequiredArgsConstructor
- // Priorytet nr 2
 public class SecurityConfig {
     
     private final JwtAuthenticationFilter jwtAuthFilter;
@@ -27,9 +26,9 @@ public class SecurityConfig {
     
     @Bean
     @Order(2)
-    public SecurityFilterChain userSecurityFilterChain(HttpSecurity http) throws Exception { // UNIKALNA NAZWA
+    public SecurityFilterChain userSecurityFilterChain(HttpSecurity http) throws Exception {
         http
-            .securityMatcher("/api/users/**", "/auth/**") // OBSŁUGUJ TYLKO TO
+            .securityMatcher("/api/users/**", "/auth/**")
             .cors(Customizer.withDefaults())
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth

@@ -12,6 +12,13 @@ spring:
       ddl-auto: update
     database-platform: org.hibernate.dialect.PostgreSQLDialect
 
-  logging:
-    level:
-      org.springframework.security: DEBUG
+security:
+  jwt:
+    # Base64-encoded secret - MUSI BYĆ TAKI SAM JAK W TOURNEY SERVICE!
+    secret-base64: "9f3c8a2d1b7e4c6f8a9d0c1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a"
+    expiration: 86400000
+
+logging:
+  level:
+    org.springframework.security: DEBUG
+    com.common.security: DEBUG

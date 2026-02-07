@@ -7,7 +7,7 @@ import com.tourney.domain.scores.ScoreType;
 import com.tourney.domain.systems.Deployment;
 import com.tourney.domain.systems.GameSystem;
 import com.tourney.domain.systems.PrimaryMission;
-import com.tourney.domain.user.User;
+import com.common.domain.User;
 import com.tourney.dto.matches.CreateSingleMatchDTO;
 import com.tourney.dto.matches.MatchDetailsDTO;
 import com.tourney.dto.matches.MatchSummaryDTO;
@@ -43,7 +43,7 @@ public class SingleMatchService {
     private final DeploymentRepository deploymentRepository;
     private final ScoreRepository scoreRepository;
 
-    public Match createSingleMatch(CreateSingleMatchDTO dto, Long currentUserId) {
+    public SingleMatch createSingleMatch(CreateSingleMatchDTO dto, Long currentUserId) {
         validate(dto, currentUserId);
 
         User player1 = userRepository.findById(currentUserId)
@@ -70,8 +70,7 @@ public class SingleMatchService {
                     .orElseThrow(() -> new EntityNotFoundException("Deployment not found"));
         }
 
-        Match match = new Match();
-        match.setTournamentRound(null); // poza turniejem
+        SingleMatch match = new SingleMatch();
         match.setPlayer1(player1);
         match.setPlayer2(player2);
         match.setStatus(MatchStatus.SCHEDULED);
@@ -93,8 +92,8 @@ public class SingleMatchService {
         // zapisze też rounds dzięki cascade=ALL na Match.rounds
         match = matchRepository.save(match);
 
-        // NOWE: utwórz wiersze Score zależnie od konfiguracji GameSystem
-        scoreRepository.saveAll(buildInitialScores(match, gameSystem, currentUserId));
+        // NIE tworzymy Score przy tworzeniu - dopiero przy rozpoczęciu meczu
+        // Score będą utworzone w startSingleMatch() po zatwierdzeniu gotowości graczy
 
         MatchDetails details = new MatchDetails();
         details.setMatch(match);
@@ -111,6 +110,31 @@ public class SingleMatchService {
         match.setDetails(details);
 
         return match;
+    }
+
+    /**
+     * Inicjalizuje mecz pojedynczy - tworzy Score dla wszystkich rund.
+     * Wywoływane przy rozpoczęciu meczu (po zatwierdzeniu gotowości).
+     */
+    public void startSingleMatch(Long matchId, Long startingUserId) {
+        SingleMatch match = matchRepository.findById(matchId)
+                .map(m -> m instanceof SingleMatch ? (SingleMatch) m : null)
+                .orElseThrow(() -> new EntityNotFoundException("SingleMatch not found with id: " + matchId));
+
+        if (match.getStatus() != MatchStatus.SCHEDULED) {
+            throw new IllegalStateException("Mecz można rozpocząć tylko ze statusu SCHEDULED");
+        }
+
+        GameSystem gameSystem = match.getDetails() != null ? match.getDetails().getGameSystem() : null;
+        if (gameSystem == null) {
+            throw new IllegalStateException("Mecz nie ma przypisanego systemu gry");
+        }
+
+        // Utwórz Score dla wszystkich rund
+        List<Score> scores = buildInitialScores(match, gameSystem, startingUserId);
+        scoreRepository.saveAll(scores);
+
+        // Status zostanie zmieniony na IN_PROGRESS w PlayerMatchService.startMatch
     }
 
     private List<Score> buildInitialScores(Match match, GameSystem gameSystem, Long enteredByUserId) {
@@ -152,7 +176,7 @@ public class SingleMatchService {
         return out;
     }
 
-    public List<Match> getMySingleMatches(Long currentUserId) {
+    public List<SingleMatch> getMySingleMatches(Long currentUserId) {
         return matchRepository.findMySingleMatches(currentUserId);
     }
 
@@ -276,6 +300,15 @@ public class SingleMatchService {
         String player1Name = match.getPlayer1() != null ? match.getPlayer1().getName() : null;
         String player2Name = resolvePlayer2DisplayName(match);
 
+        // Extract tournamentId if this is a TournamentMatch
+        Long tournamentId = null;
+        if (match instanceof com.tourney.domain.games.TournamentMatch) {
+            com.tourney.domain.games.TournamentMatch tournamentMatch = (com.tourney.domain.games.TournamentMatch) match;
+            if (tournamentMatch.getTournamentRound() != null && tournamentMatch.getTournamentRound().getTournament() != null) {
+                tournamentId = tournamentMatch.getTournamentRound().getTournament().getId();
+            }
+        }
+
         String primaryMission = match.getDetails() != null && match.getDetails().getPrimaryMission() != null
                 ? match.getDetails().getPrimaryMission().getName()
                 : null;
@@ -287,10 +320,11 @@ public class SingleMatchService {
         Integer armyPower = match.getDetails() != null ? match.getDetails().getArmyPower() : null;
 
         GameSystem gs = (match.getDetails() != null) ? match.getDetails().getGameSystem() : null;
-        boolean primaryScoreEnabled = gs != null && gs.isPrimaryScoreEnabled();
-        boolean secondaryScoreEnabled = gs != null && gs.isSecondaryScoreEnabled();
-        boolean thirdScoreEnabled = gs != null && gs.isThirdScoreEnabled();
-        boolean additionalScoreEnabled = gs != null && gs.isAdditionalScoreEnabled();
+        // For legacy matches without GameSystem, enable all score types by default
+        boolean primaryScoreEnabled = gs != null ? gs.isPrimaryScoreEnabled() : true;
+        boolean secondaryScoreEnabled = gs != null ? gs.isSecondaryScoreEnabled() : true;
+        boolean thirdScoreEnabled = gs != null ? gs.isThirdScoreEnabled() : false;
+        boolean additionalScoreEnabled = gs != null ? gs.isAdditionalScoreEnabled() : false;
 
         List<Score> scores = scoreRepository.findAllByMatchIdWithRound(matchId);
 
@@ -342,6 +376,10 @@ public class SingleMatchService {
         return MatchSummaryDTO.builder()
                 .matchId(match.getId())
                 .matchName(matchName)
+                .tournamentId(tournamentId)
+                .currentUserId(currentUserId)
+                .player1Id(match.getPlayer1() != null ? match.getPlayer1().getId() : null)
+                .player2Id(match.getPlayer2() != null ? match.getPlayer2().getId() : null)
                 .player1Name(player1Name)
                 .player2Name(player2Name)
                 .primaryMission(primaryMission)

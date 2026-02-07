@@ -3,6 +3,8 @@ package com.tourney.controller.tournament;
 import com.tourney.domain.games.Match;
 import com.tourney.dto.rounds.RoundCompletionSummaryDTO;
 import com.tourney.dto.rounds.RoundStartResponseDTO;
+import com.tourney.dto.tournament.RoundStatusDTO;
+import com.tourney.dto.tournament.TournamentRoundViewDTO;
 import com.tourney.service.games.MatchConversionService;
 import com.tourney.service.tournament.SubsequentRoundPairingService;
 import com.tourney.service.tournament.TournamentRoundService;
@@ -26,17 +28,22 @@ public class TournamentRoundController {
     public ResponseEntity<RoundStartResponseDTO> startFirstRound(
             @PathVariable Long tournamentId
     ) {
-        List<Match> matches = firstRoundPairingService.createFirstRoundPairings(tournamentId);
-        
-        RoundStartResponseDTO response = RoundStartResponseDTO.builder()
-                .roundNumber(1)
-                .matchCount(matches.size())
-                .matches(matches.stream()
-                        .map(matchConversionService::toMatchInfo)
-                        .toList())
-                .build();
-        
-        return ResponseEntity.ok(response);
+        try {
+            List<Match> matches = firstRoundPairingService.createFirstRoundPairings(tournamentId);
+            
+            RoundStartResponseDTO response = RoundStartResponseDTO.builder()
+                    .roundNumber(1)
+                    .matchCount(matches.size())
+                    .matches(matches.stream()
+                            .map(matchConversionService::toMatchInfo)
+                            .toList())
+                    .build();
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Błąd podczas tworzenia par pierwszej rundy: " + e.getMessage(), e);
+        }
     }
 
     @PostMapping("/start-next")
@@ -78,6 +85,52 @@ public class TournamentRoundController {
     ) {
         RoundCompletionSummaryDTO summary = tournamentRoundService.getRoundStatus(tournamentId, roundNumber);
         return ResponseEntity.ok(summary);
+    }
+
+    @PostMapping("/{roundNumber}/start")
+    public ResponseEntity<Void> startRound(
+            @PathVariable Long tournamentId,
+            @PathVariable int roundNumber
+    ) {
+        tournamentRoundService.startRound(tournamentId, roundNumber);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{roundNumber}/extend")
+    public ResponseEntity<Void> extendSubmissionDeadline(
+            @PathVariable Long tournamentId,
+            @PathVariable int roundNumber,
+            @RequestParam(defaultValue = "5") int additionalMinutes
+    ) {
+        tournamentRoundService.extendSubmissionDeadline(tournamentId, roundNumber, additionalMinutes);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/{roundNumber}/organizer-status")
+    public ResponseEntity<RoundStatusDTO> getOrganizerRoundStatus(
+            @PathVariable Long tournamentId,
+            @PathVariable int roundNumber
+    ) {
+        RoundStatusDTO status = tournamentRoundService.getRoundStatusForOrganizer(tournamentId, roundNumber);
+        return ResponseEntity.ok(status);
+    }
+
+    @GetMapping("/all")
+    public ResponseEntity<List<TournamentRoundViewDTO>> getAllRoundsView(
+            @PathVariable Long tournamentId
+    ) {
+        List<TournamentRoundViewDTO> rounds = tournamentRoundService.getTournamentRoundsView(tournamentId);
+        return ResponseEntity.ok(rounds);
+    }
+
+    @PostMapping("/{roundNumber}/matches/{matchId}/start")
+    public ResponseEntity<Void> startIndividualMatch(
+            @PathVariable Long tournamentId,
+            @PathVariable int roundNumber,
+            @PathVariable Long matchId
+    ) {
+        tournamentRoundService.startIndividualMatch(tournamentId, roundNumber, matchId);
+        return ResponseEntity.ok().build();
     }
 
 }

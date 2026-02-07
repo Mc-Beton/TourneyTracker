@@ -30,25 +30,39 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
+        String path = request.getServletPath();
+        log.debug("JwtAuthenticationFilter processing: {} {}", request.getMethod(), path);
+        
         try {
             String token = extractToken(request);
+            log.debug("Extracted token: {}", token != null ? "present (length=" + token.length() + ")" : "null");
 
-            if (token != null && jwtService.isTokenValid(token)) {
-                String username = jwtService.extractUsername(token);
-                Long userId = jwtService.extractUserId(token);
+            if (token != null) {
+                boolean isValid = jwtService.isTokenValid(token);
+                log.debug("Token valid: {}", isValid);
+                
+                if (isValid) {
+                    String username = jwtService.extractUsername(token);
+                    Long userId = jwtService.extractUserId(token);
+                    log.debug("Extracted username: {}, userId: {}", username, userId);
 
-                if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                    UserPrincipal principal = new UserPrincipal(userId, username);
+                    if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                        UserPrincipal principal = new UserPrincipal(userId, username);
+                        log.debug("Creating authentication for user: {} (id={})", username, userId);
 
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(
-                                    principal,
-                                    null,
-                                    Collections.singleton(new SimpleGrantedAuthority("ROLE_USER"))
-                            );
+                        UsernamePasswordAuthenticationToken authentication =
+                                new UsernamePasswordAuthenticationToken(
+                                        principal,
+                                        null,
+                                        Collections.singleton(new SimpleGrantedAuthority("ROLE_USER"))
+                                );
 
-                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                        log.debug("Authentication set in SecurityContext");
+                    } else if (SecurityContextHolder.getContext().getAuthentication() != null) {
+                        log.debug("Authentication already present in SecurityContext");
+                    }
                 }
             }
         } catch (Exception e) {

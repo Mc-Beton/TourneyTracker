@@ -1,6 +1,7 @@
 package com.tourney.domain.tournament;
 
 import com.tourney.domain.games.Match;
+import com.tourney.domain.games.TournamentMatch;
 import com.tourney.domain.games.RoundStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -23,7 +24,7 @@ public class TournamentRound {
     @JoinColumn(name = "tournament_id")
     private Tournament tournament;
 
-    @OneToMany(mappedBy = "tournamentRound", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "tournamentRound", cascade = CascadeType.ALL, targetEntity = TournamentMatch.class)
     private List<Match> matches = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)

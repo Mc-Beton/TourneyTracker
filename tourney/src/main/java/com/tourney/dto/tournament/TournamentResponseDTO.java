@@ -27,6 +27,8 @@ public class TournamentResponseDTO {
     private String description;
     private Integer maxParticipants;
     private String organizerName;
+    private Integer armyPointsLimit;
+    private Integer confirmedParticipantsCount;
 
     private TournamentStatus status;
 

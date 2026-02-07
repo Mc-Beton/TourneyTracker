@@ -1,11 +1,12 @@
-package com.tourney.user_service.domain;
+package com.common.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
 @Table(name = "user_role_dict")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserRole {

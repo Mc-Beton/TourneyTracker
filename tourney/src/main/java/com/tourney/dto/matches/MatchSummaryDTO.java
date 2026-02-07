@@ -14,7 +14,11 @@ import java.util.Map;
 public class MatchSummaryDTO {
     private Long matchId;
     private String matchName;
+    private Long tournamentId; // ID turnieju jeśli mecz jest mecząem turniejowym, null dla single matches
 
+    private Long currentUserId; // ID aktualnie zalogowanego użytkownika
+    private Long player1Id;
+    private Long player2Id;
     private String player1Name;
     private String player2Name; // dla hotseat: guestPlayer2Name
 

@@ -1,17 +1,20 @@
 package com.tourney.service.tournament;
 
 import com.tourney.domain.games.Match;
+import com.tourney.domain.notification.NotificationType;
 import com.tourney.domain.participant.TournamentParticipant;
 import com.tourney.domain.scores.Score;
 import com.tourney.domain.tournament.Tournament;
-import com.tourney.domain.user.User;
+import com.common.domain.User;
 import com.tourney.dto.complex.UserTournamentMatchesDTO;
 import com.tourney.dto.matches.MatchDetailsDTO;
 import com.tourney.dto.participant.TournamentParticipantDTO;
 import com.tourney.dto.scores.RoundScoreDTO;
 import com.tourney.repository.games.MatchRepository;
+import com.tourney.repository.participant.TournamentParticipantRepository;
 import com.tourney.repository.scores.ScoreRepository;
 import com.tourney.repository.tournament.TournamentRepository;
+import com.tourney.service.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,8 +28,10 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class TournamentUserService {
     private final TournamentRepository tournamentRepository;
+    private final TournamentParticipantRepository participantRepository;
     private final ScoreRepository scoreRepository;
     private final MatchRepository matchRepository;
+    private final NotificationService notificationService;
 
     public List<UserTournamentMatchesDTO> getUsersMatchesWithScores(Long tournamentId) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
@@ -118,21 +123,28 @@ public class TournamentUserService {
                         .name(link.getUser().getName())
                         .email(link.getUser().getEmail())
                         .confirmed(link.isConfirmed())
+                        .isPaid(link.isPaid())
+                        .armyListStatus(link.getArmyListStatus())
+                        .armyFactionName(link.getArmyFaction() != null ? link.getArmyFaction().getName() : null)
+                        .armyName(link.getArmy() != null ? link.getArmy().getName() : null)
                         .build())
                 .toList();
     }
 
     public List<TournamentParticipantDTO> getParticipantsByConfirmation(Long tournamentId, boolean confirmed) {
-        Tournament tournament = tournamentRepository.findById(tournamentId)
-                .orElseThrow(() -> new RuntimeException("Nie znaleziono turnieju o ID: " + tournamentId));
-
-        return tournament.getParticipantLinks().stream()
-                .filter(link -> link.isConfirmed() == confirmed)
+        // Use repository query instead of lazy-loaded relationship to avoid cache issues
+        List<TournamentParticipant> participants = participantRepository.findByTournamentIdAndConfirmed(tournamentId, confirmed);
+        
+        return participants.stream()
                 .map(link -> TournamentParticipantDTO.builder()
                         .userId(link.getUser().getId())
                         .name(link.getUser().getName())
                         .email(link.getUser().getEmail())
                         .confirmed(link.isConfirmed())
+                        .isPaid(link.isPaid())
+                        .armyListStatus(link.getArmyListStatus())
+                        .armyFactionName(link.getArmyFaction() != null ? link.getArmyFaction().getName() : null)
+                        .armyName(link.getArmy() != null ? link.getArmy().getName() : null)
                         .build())
                 .toList();
     }
@@ -154,6 +166,21 @@ public class TournamentUserService {
 
         link.setConfirmed(confirmed);
 
-        return tournamentRepository.save(tournament);
+        Tournament savedTournament = tournamentRepository.save(tournament);
+
+        // Notify participant when confirmed
+        if (confirmed) {
+            notificationService.createNotification(
+                    userId,
+                    NotificationType.PARTICIPATION_CONFIRMED,
+                    tournament.getId(),
+                    tournament.getName(),
+                    "Twoje uczestnictwo w turnieju zostało potwierdzone",
+                    currentUserId,
+                    tournament.getOrganizer().getName()
+            );
+        }
+
+        return savedTournament;
     }
 }

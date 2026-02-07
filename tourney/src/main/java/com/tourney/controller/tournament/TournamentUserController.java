@@ -2,7 +2,7 @@ package com.tourney.controller.tournament;
 
 import com.common.security.UserPrincipal;
 import com.tourney.domain.tournament.Tournament;
-import com.tourney.domain.user.User;
+import com.common.domain.User;
 import com.tourney.dto.complex.UserTournamentMatchesDTO;
 import com.tourney.dto.participant.TournamentParticipantDTO;
 import com.tourney.dto.tournament.TournamentResponseDTO;

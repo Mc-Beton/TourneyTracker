@@ -1,6 +1,6 @@
 package com.tourney.domain.player;
 
-import com.tourney.domain.user.User;
+import com.common.domain.User;
 import lombok.Getter;
 
 @Getter

@@ -1,6 +1,6 @@
 package com.tourney.mapper.user;
 
-import com.tourney.domain.user.User;
+import com.common.domain.User;
 import com.tourney.dto.user.UserDTO;
 import org.springframework.stereotype.Component;
 

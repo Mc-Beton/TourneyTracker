@@ -1,8 +1,10 @@
 package com.tourney.service.match;
 
+import com.common.domain.User;
 import com.tourney.domain.games.Match;
 import com.tourney.domain.games.MatchRound;
 import com.tourney.domain.games.RoundStatus;
+import com.tourney.domain.games.TournamentMatch;
 import com.tourney.domain.scores.MatchSide;
 import com.tourney.domain.scores.Score;
 import com.tourney.domain.scores.ScoreType;
@@ -57,7 +59,16 @@ public class MatchScoringService {
                 .min(Integer::compare) // najmniejszy numer
                 .orElse(1);
 
-        GameSystem gs = (match.getDetails() != null) ? match.getDetails().getGameSystem() : null;
+        // Pobierz GameSystem - dla meczów turniejowych z tournament, dla zwykłych z match details
+        GameSystem gs = null;
+        if (match instanceof TournamentMatch tournamentMatch) {
+            // Mecz turniejowy - pobierz system gry z turnieju
+            gs = tournamentMatch.getTournamentRound().getTournament().getGameSystem();
+        } else if (match.getDetails() != null) {
+            // Zwykły mecz - pobierz system gry z detali meczu
+            gs = match.getDetails().getGameSystem();
+        }
+        
         boolean primaryScoreEnabled = gs != null && gs.isPrimaryScoreEnabled();
         boolean secondaryScoreEnabled = gs != null && gs.isSecondaryScoreEnabled();
         boolean thirdScoreEnabled = gs != null && gs.isThirdScoreEnabled();
@@ -70,6 +81,9 @@ public class MatchScoringService {
                 .player2Name(resolvePlayer2Name(match))
                 .currentRound(currentRound)
                 .totalRounds(totalRounds)
+                .gameDurationMinutes(match.getGameDurationMinutes())
+                .resultSubmissionDeadline(match.getResultSubmissionDeadline())
+                .endTime(match.getGameEndTime())
                 .primaryScoreEnabled(primaryScoreEnabled)
                 .secondaryScoreEnabled(secondaryScoreEnabled)
                 .thirdScoreEnabled(thirdScoreEnabled)
@@ -111,9 +125,6 @@ public class MatchScoringService {
             if (e.getScoreType() == null) {
                 throw new IllegalArgumentException("scoreType jest wymagane");
             }
-
-            // Opcjonalnie: jeżeli nie chcesz przyjmować innych typów niż MAIN/SECONDARY:
-            // if (e.getScoreType() != ScoreType.MAIN_SCORE && e.getScoreType() != ScoreType.SECONDARY_SCORE) continue;
 
             Score score = scoreRepository
                     .findByMatchRoundIdAndSideAndScoreType(round.getId(), e.getSide(), e.getScoreType())
@@ -229,7 +240,7 @@ public class MatchScoringService {
         }
     }
 
-    private com.tourney.domain.user.User mapSideToUser(Match match, MatchSide side) {
+    private User mapSideToUser(Match match, MatchSide side) {
         return switch (side) {
             case PLAYER1 -> match.getPlayer1();
             case PLAYER2 -> match.getPlayer2(); // null dla hotseat

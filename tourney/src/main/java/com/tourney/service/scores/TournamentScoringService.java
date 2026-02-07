@@ -6,7 +6,7 @@ import com.tourney.domain.scores.Score;
 import com.tourney.domain.scores.ScoreType;
 import com.tourney.domain.tournament.Tournament;
 import com.tourney.domain.tournament.TournamentScoring;
-import com.tourney.domain.user.User;
+import com.common.domain.User;
 import com.tourney.repository.scores.ScoreRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -41,7 +41,11 @@ public class TournamentScoringService {
     }
 
     public void submitScores(MatchRound round, User user, Map<ScoreType, Long> scores) {
-        Tournament tournament = round.getMatch().getTournamentRound().getTournament();
+        com.tourney.domain.games.Match match = round.getMatch();
+        if (!(match instanceof com.tourney.domain.games.TournamentMatch tournamentMatch)) {
+            throw new IllegalArgumentException("Match is not a tournament match");
+        }
+        Tournament tournament = tournamentMatch.getTournamentRound().getTournament();
         TournamentScoring scoring = tournament.getTournamentScoring();
 
         validateScoreSubmission(tournament, round.getMatch(), round);

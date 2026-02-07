@@ -12,6 +12,7 @@ import java.util.List;
 @Builder
 public class CurrentMatchDTO {
     private Long matchId;
+    private Integer tableNumber;
     private String opponentName;
     private MatchStatus status;
     private LocalDateTime startTime;

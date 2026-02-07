@@ -1,6 +1,6 @@
 package com.tourney.user_service.domain.tableInit;
 
-import com.tourney.user_service.domain.UserRole;
+import com.common.domain.UserRole;
 import com.tourney.user_service.repository.UserRoleRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;

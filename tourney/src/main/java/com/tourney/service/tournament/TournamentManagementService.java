@@ -1,17 +1,21 @@
 package com.tourney.service.tournament;
 
+import com.tourney.domain.games.RoundStatus;
+import com.tourney.domain.notification.NotificationType;
 import com.tourney.domain.participant.TournamentParticipant;
 import com.tourney.domain.systems.GameSystem;
 import com.tourney.domain.tournament.Tournament;
 import com.tourney.domain.tournament.TournamentRound;
+import com.tourney.domain.tournament.TournamentRoundDefinition;
 import com.tourney.domain.tournament.TournamentScoring;
-import com.tourney.domain.user.User;
+import com.common.domain.User;
 import com.tourney.dto.tournament.CreateTournamentDTO;
 import com.tourney.dto.tournament.TournamentStatus;
 import com.tourney.dto.tournament.UpdateTournamentDTO;
 import com.tourney.repository.systems.GameSystemRepository;
 import com.tourney.repository.tournament.TournamentRepository;
 import com.tourney.repository.user.UserRepository;
+import com.tourney.service.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +32,7 @@ public class TournamentManagementService {
     private final TournamentRepository tournamentRepository;
     private final UserRepository userRepository;
     private final GameSystemRepository gameSystemRepository;
+    private final NotificationService notificationService;
 
     public Tournament createTournament(CreateTournamentDTO dto, Long organizerId) {
         validateTournamentData(dto);
@@ -45,6 +50,8 @@ public class TournamentManagementService {
         tournament.setEndDate(dto.getEndDate());
         tournament.setNumberOfRounds(dto.getNumberOfRounds());
         tournament.setRoundDurationMinutes(dto.getRoundDurationMinutes());
+        tournament.setScoreSubmissionExtraMinutes(dto.getScoreSubmissionExtraMinutes());
+        tournament.setRoundStartMode(dto.getRoundStartMode());
         tournament.setGameSystem(gameSystem);
         tournament.setOrganizer(organizer);
         tournament.setType(dto.getType());
@@ -52,18 +59,28 @@ public class TournamentManagementService {
         tournament.setRegistrationDeadline(dto.getRegistrationDeadline());
         tournament.setLocation(dto.getLocation());
         tournament.setVenue(dto.getVenue());
+        tournament.setArmyPointsLimit(dto.getArmyPointsLimit());
         tournament.setStatus(TournamentStatus.DRAFT);
         tournament.setRounds(createInitialRounds(tournament));
 
         // Tworzenie i konfiguracja systemu punktacji
         TournamentScoring scoring = new TournamentScoring();
         scoring.setTournament(tournament);
+        // System małych punktów (Score Points)
         scoring.setScoringSystem(dto.getScoringSystem());
         scoring.setEnabledScoreTypes(dto.getEnabledScoreTypes());
         scoring.setRequireAllScoreTypes(dto.isRequireAllScoreTypes());
         scoring.setMinScore(dto.getMinScore());
         scoring.setMaxScore(dto.getMaxScore());
+        // System dużych punktów (Tournament Points)
+        scoring.setTournamentPointsSystem(dto.getTournamentPointsSystem());
+        scoring.setPointsForWin(dto.getPointsForWin());
+        scoring.setPointsForDraw(dto.getPointsForDraw());
+        scoring.setPointsForLoss(dto.getPointsForLoss());
         tournament.setTournamentScoring(scoring);
+        
+        // Tworzenie definicji rund z domyślnymi wartościami Bye
+        tournament.setRoundDefinitions(createRoundDefinitions(tournament, dto.getTournamentPointsSystem(), dto.getPointsForDraw()));
 
         return tournamentRepository.save(tournament);
     }
@@ -134,7 +151,20 @@ public class TournamentManagementService {
 
         tournament.getParticipantLinks().add(link);
 
-        return tournamentRepository.save(tournament);
+        Tournament savedTournament = tournamentRepository.save(tournament);
+
+        // Notify organizer
+        notificationService.createNotification(
+                tournament.getOrganizer().getId(),
+                NotificationType.PARTICIPANT_REGISTERED,
+                tournament.getId(),
+                tournament.getName(),
+                user.getName() + " zapisał się na Twój turniej",
+                userId,
+                user.getName()
+        );
+
+        return savedTournament;
     }
 
 
@@ -164,6 +194,38 @@ public class TournamentManagementService {
             rounds.add(round);
         });
         return rounds;
+    }
+    
+    private List<TournamentRoundDefinition> createRoundDefinitions(
+            Tournament tournament, 
+            com.tourney.domain.scores.TournamentPointsSystem pointsSystem,
+            Integer pointsForDraw) {
+        List<TournamentRoundDefinition> definitions = new ArrayList<>();
+        
+        // Default Bye points based on tournament points system
+        int defaultByeLargePoints;
+        if (pointsSystem == com.tourney.domain.scores.TournamentPointsSystem.FIXED) {
+            // For FIXED points: use draw points
+            defaultByeLargePoints = pointsForDraw != null ? pointsForDraw : 0;
+        } else {
+            // For POINT_DIFFERENCE systems: default to 10
+            defaultByeLargePoints = 10;
+        }
+        
+        IntStream.rangeClosed(1, tournament.getNumberOfRounds()).forEach(roundNumber -> {
+            TournamentRoundDefinition definition = TournamentRoundDefinition.builder()
+                    .tournament(tournament)
+                    .roundNumber(roundNumber)
+                    .isSplitMapLayout(false)
+                    .byeLargePoints(defaultByeLargePoints)
+                    .byeSmallPoints(0)
+                    .splitLargePoints(0)
+                    .splitSmallPoints(0)
+                    .build();
+            definitions.add(definition);
+        });
+        
+        return definitions;
     }
 
     private void validateTournamentData(CreateTournamentDTO dto) {
@@ -235,17 +297,25 @@ public class TournamentManagementService {
                 .endDate(tournament.getEndDate())
                 .numberOfRounds(tournament.getNumberOfRounds())
                 .roundDurationMinutes(tournament.getRoundDurationMinutes())
+                .scoreSubmissionExtraMinutes(tournament.getScoreSubmissionExtraMinutes())
+                .roundStartMode(tournament.getRoundStartMode())
                 .gameSystemId(tournament.getGameSystem() != null ? tournament.getGameSystem().getId() : null)
                 .type(tournament.getType())
                 .maxParticipants(tournament.getMaxParticipants())
                 .registrationDeadline(tournament.getRegistrationDeadline())
                 .location(tournament.getLocation())
                 .venue(tournament.getVenue())
+                // Pola małych punktów (Score Points)
                 .scoringSystem(tournament.getTournamentScoring() != null ? tournament.getTournamentScoring().getScoringSystem() : null)
                 .enabledScoreTypes(tournament.getTournamentScoring() != null ? tournament.getTournamentScoring().getEnabledScoreTypes() : null)
                 .requireAllScoreTypes(tournament.getTournamentScoring() != null && Boolean.TRUE.equals(tournament.getTournamentScoring().isRequireAllScoreTypes()))
                 .minScore(tournament.getTournamentScoring() != null ? tournament.getTournamentScoring().getMinScore() : null)
                 .maxScore(tournament.getTournamentScoring() != null ? tournament.getTournamentScoring().getMaxScore() : null)
+                // Pola dużych punktów (Tournament Points)
+                .tournamentPointsSystem(tournament.getTournamentScoring() != null ? tournament.getTournamentScoring().getTournamentPointsSystem() : null)
+                .pointsForWin(tournament.getTournamentScoring() != null ? tournament.getTournamentScoring().getPointsForWin() : null)
+                .pointsForDraw(tournament.getTournamentScoring() != null ? tournament.getTournamentScoring().getPointsForDraw() : null)
+                .pointsForLoss(tournament.getTournamentScoring() != null ? tournament.getTournamentScoring().getPointsForLoss() : null)
                 .build();
     }
 
@@ -263,6 +333,91 @@ public class TournamentManagementService {
 
         // Minimalna logika przełączania statusu (możesz ją rozbudować o walidacje)
         tournament.setStatus(active ? TournamentStatus.ACTIVE : TournamentStatus.DRAFT);
+
+        return tournamentRepository.save(tournament);
+    }
+
+    public Tournament startTournament(Long tournamentId, Long currentUserId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new RuntimeException("Nie znaleziono turnieju o ID: " + tournamentId));
+
+        if (tournament.getOrganizer() == null || tournament.getOrganizer().getId() == null
+                || !tournament.getOrganizer().getId().equals(currentUserId)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN,
+                    "Brak uprawnień do rozpoczęcia tego turnieju"
+            );
+        }
+
+        if (tournament.getStatus() != TournamentStatus.ACTIVE) {
+            throw new RuntimeException("Turniej musi być aktywny aby go rozpocząć");
+        }
+
+        // Walidacja: sprawdź czy są potwierdeni uczestnicy
+        long confirmedCount = tournament.getParticipantLinks().stream()
+                .filter(TournamentParticipant::isConfirmed)
+                .count();
+
+        if (confirmedCount < 2) {
+            throw new RuntimeException("Turniej musi mieć co najmniej 2 potwierdzonych uczestników");
+        }
+
+        tournament.setStatus(TournamentStatus.IN_PROGRESS);
+        
+        // Powiadomienie do wszystkich uczestników
+        tournament.getParticipantLinks().stream()
+                .filter(TournamentParticipant::isConfirmed)
+                .forEach(participant -> 
+                    notificationService.createNotification(
+                        participant.getUser().getId(),
+                        NotificationType.TOURNAMENT_STARTED,
+                        tournament.getId(),
+                        tournament.getName(),
+                        "Turniej \"" + tournament.getName() + "\" został rozpoczęty",
+                        null,
+                        null
+                    )
+                );
+
+        return tournamentRepository.save(tournament);
+    }
+
+    public Tournament completeTournament(Long tournamentId, Long currentUserId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new RuntimeException("Nie znaleziono turnieju o ID: " + tournamentId));
+
+        if (tournament.getOrganizer() == null || tournament.getOrganizer().getId() == null
+                || !tournament.getOrganizer().getId().equals(currentUserId)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN,
+                    "Brak uprawnień do zakończenia tego turnieju"
+            );
+        }
+
+        // Walidacja: wszystkie rundy muszą być zakończone
+        boolean allRoundsCompleted = tournament.getRounds().stream()
+                .allMatch(round -> round.getStatus() == RoundStatus.COMPLETED);
+
+        if (!allRoundsCompleted) {
+            throw new RuntimeException("Nie można zakończyć turnieju - nie wszystkie rundy są zakończone");
+        }
+
+        tournament.setStatus(TournamentStatus.COMPLETED);
+        
+        // Powiadomienie do wszystkich uczestników
+        tournament.getParticipantLinks().stream()
+                .filter(TournamentParticipant::isConfirmed)
+                .forEach(participant -> 
+                    notificationService.createNotification(
+                        participant.getUser().getId(),
+                        NotificationType.TOURNAMENT_RESULT,
+                        tournament.getId(),
+                        tournament.getName(),
+                        "Turniej '" + tournament.getName() + "' został zakończony!",
+                        tournamentId,
+                        "tournament"
+                    )
+                );
 
         return tournamentRepository.save(tournament);
     }

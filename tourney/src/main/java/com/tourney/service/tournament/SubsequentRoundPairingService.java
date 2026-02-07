@@ -1,12 +1,15 @@
 package com.tourney.service.tournament;
 
-import com.tourney.domain.games.Match;
+import com.tourney.domain.games.*;
 import com.tourney.domain.participant.TournamentParticipant;
 import com.tourney.domain.player.PlayerStats;
 import com.tourney.domain.scores.Score;
+import com.tourney.domain.scores.ScoreType;
 import com.tourney.domain.tournament.Tournament;
 import com.tourney.domain.tournament.TournamentRound;
-import com.tourney.domain.user.User;
+import com.tourney.domain.tournament.TournamentRoundDefinition;
+import com.common.domain.User;
+import com.tourney.repository.TournamentRoundDefinitionRepository;
 import com.tourney.repository.games.MatchRepository;
 import com.tourney.repository.scores.ScoreRepository;
 import com.tourney.repository.tournament.TournamentRepository;
@@ -25,6 +28,7 @@ public class SubsequentRoundPairingService {
     private final TournamentRepository tournamentRepository;
     private final MatchRepository matchRepository;
     private final ScoreRepository scoreRepository;
+    private final TournamentRoundDefinitionRepository roundDefinitionRepository;
 
     public List<Match> createNextRoundPairings(Long tournamentId, int roundNumber) {
         Tournament tournament = getTournament(tournamentId);
@@ -215,12 +219,22 @@ public class SubsequentRoundPairingService {
     }
 
     private Match createMatch(User player1, User player2, TournamentRound round) {
-        Match match = new Match();
+        TournamentMatch match = new TournamentMatch();
         match.setPlayer1(player1);
         match.setPlayer2(player2);
         match.setTournamentRound(round);
         match.setStartTime(LocalDateTime.now());
         match.setGameDurationMinutes(round.getTournament().getRoundDurationMinutes());
+        
+        // Tworzenie rund meczu na podstawie defaultRoundNumber z systemu gry
+        int numberOfRounds = round.getTournament().getGameSystem().getDefaultRoundNumber();
+        for (int i = 1; i <= numberOfRounds; i++) {
+            MatchRound matchRound = new MatchRound();
+            matchRound.setRoundNumber(i);
+            matchRound.setMatch(match);
+            match.getRounds().add(matchRound);
+        }
+        
         return match;
     }
 
@@ -243,11 +257,77 @@ public class SubsequentRoundPairingService {
     }
 
     private Match createByeMatch(User player, TournamentRound round) {
-        Match byeMatch = new Match();
+        com.tourney.domain.games.TournamentMatch byeMatch = new com.tourney.domain.games.TournamentMatch();
         byeMatch.setPlayer1(player);
         byeMatch.setTournamentRound(round);
         byeMatch.setStartTime(LocalDateTime.now());
         byeMatch.setGameDurationMinutes(round.getTournament().getRoundDurationMinutes());
+        
+        // Tworzenie rund meczu na podstawie defaultRoundNumber z systemu gry
+        int numberOfRounds = round.getTournament().getGameSystem().getDefaultRoundNumber();
+        for (int i = 1; i <= numberOfRounds; i++) {
+            MatchRound matchRound = new MatchRound();
+            matchRound.setRoundNumber(i);
+            matchRound.setMatch(byeMatch);
+            byeMatch.getRounds().add(matchRound);
+        }
+        
+        // Automatyczne przypisanie punktów za BYE na podstawie definicji rundy
+        assignByePoints(byeMatch, player, round, numberOfRounds);
+        
         return byeMatch;
+    }
+    
+    private void assignByePoints(TournamentMatch byeMatch, User player, TournamentRound round, int numberOfRounds) {
+        // Pobierz definicję rundy
+        Optional<TournamentRoundDefinition> definitionOpt = roundDefinitionRepository
+                .findByTournamentIdAndRoundNumber(round.getTournament().getId(), round.getRoundNumber());
+        
+        if (definitionOpt.isEmpty()) {
+            return; // Brak definicji - nie przypisujemy punktów
+        }
+        
+        TournamentRoundDefinition definition = definitionOpt.get();
+        Integer byeSmallPoints = definition.getByeSmallPoints();
+        Integer byeLargePoints = definition.getByeLargePoints();
+        
+        if (byeSmallPoints == null && byeLargePoints == null) {
+            return; // Brak zdefiniowanych punktów BYE
+        }
+        
+        // Utwórz MatchResult
+        MatchResult matchResult = new MatchResult();
+        matchResult.setSubmittedById(player.getId());
+        matchResult.setSubmissionTime(LocalDateTime.now());
+        matchResult.setWinnerId(player.getId()); // Gracz z BYE automatycznie wygrywa
+        
+        // Utwórz PlayerScore dla gracza
+        PlayerScore playerScore = new PlayerScore();
+        
+        // Dla każdej rundy meczu dodaj punkty BYE
+        for (int i = 0; i < numberOfRounds; i++) {
+            RoundScore roundScore = new RoundScore();
+            
+            // Małe punkty (Primary points) -> MAIN_SCORE
+            if (byeSmallPoints != null && byeSmallPoints > 0) {
+                roundScore.getScores().put(ScoreType.MAIN_SCORE, byeSmallPoints.doubleValue());
+            }
+            
+            // Duże punkty (Game points) -> SECONDARY_SCORE
+            if (byeLargePoints != null && byeLargePoints > 0) {
+                roundScore.getScores().put(ScoreType.SECONDARY_SCORE, byeLargePoints.doubleValue());
+            }
+            
+            playerScore.getRoundScores().add(roundScore);
+        }
+        
+        // Dodaj PlayerScore do MatchResult
+        matchResult.addPlayerResult(player.getId(), playerScore);
+        
+        // Przypisz MatchResult do meczu
+        byeMatch.setMatchResult(matchResult);
+        byeMatch.setCompleted(true);
+        byeMatch.setResultsConfirmed(true);
+        byeMatch.setPlayer1Confirmed(true);
     }
 }

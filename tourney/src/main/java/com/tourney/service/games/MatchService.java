@@ -25,12 +25,7 @@ public class MatchService {
                 .orElseThrow(() -> new EntityNotFoundException("Match not found with id: " + id));
     }
 
-    @Transactional
-    public MatchDTO create(MatchDTO matchDTO) {
-        Match match = matchMapper.toEntity(matchDTO);
-        match.setId(null);
-        return matchMapper.toDto(matchRepository.save(match));
-    }
+    // create() removed - use SingleMatchService or tournament pairing services instead
 
     @Transactional(readOnly = true)
     public List<MatchDTO> findAll() {

@@ -2,17 +2,16 @@ package com.tourney.controller.tournament;
 
 import com.common.security.UserPrincipal;
 import com.tourney.domain.tournament.Tournament;
-import com.tourney.dto.tournament.CreateTournamentDTO;
-import com.tourney.dto.tournament.TournamentResponseDTO;
-import com.tourney.dto.tournament.UpdateTournamentDTO;
+import com.tourney.dto.tournament.*;
 import com.tourney.mapper.tournament.TournamentMapper;
 import com.tourney.service.tournament.TournamentManagementService;
+import com.tourney.service.tournament.TournamentStatsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import com.tourney.domain.user.User;
+import com.common.domain.User;
 
 import jakarta.validation.Valid;
 
@@ -24,6 +23,7 @@ import java.util.List;
 public class TournamentController {
     private final TournamentManagementService tournamentManagementService;
     private final TournamentMapper tournamentMapper;
+    private final TournamentStatsService tournamentStatsService;
 
     @GetMapping
     public ResponseEntity<Iterable<TournamentResponseDTO>> getAllTournaments() {
@@ -113,5 +113,41 @@ public class TournamentController {
         Tournament tournament = tournamentManagementService.setTournamentActive(id, active, currentUser.getId());
         return ResponseEntity.ok(tournamentMapper.toDto(tournament));
     }
+    @GetMapping("/{id}/participants/stats")
+    public ResponseEntity<List<ParticipantStatsDTO>> getParticipantStats(
+            @PathVariable Long id
+    ) {
+        Tournament tournament = tournamentManagementService.getTournamentById(id);
+        List<ParticipantStatsDTO> stats = tournamentStatsService.calculateParticipantStats(tournament);
+        return ResponseEntity.ok(stats);
+    }
+
+    @GetMapping("/{id}/podium")
+    public ResponseEntity<PodiumDTO> getPodium(
+            @PathVariable Long id
+    ) {
+        Tournament tournament = tournamentManagementService.getTournamentById(id);
+        PodiumDTO podium = tournamentStatsService.calculatePodium(tournament);
+        return ResponseEntity.ok(podium);
+    }
+
+    @PostMapping("/{id}/start")
+    public ResponseEntity<TournamentResponseDTO> startTournament(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal currentUser
+    ) {
+        Tournament tournament = tournamentManagementService.startTournament(id, currentUser.getId());
+        return ResponseEntity.ok(tournamentMapper.toDto(tournament));
+    }
+
+    @PostMapping("/{id}/complete")
+    public ResponseEntity<TournamentResponseDTO> completeTournament(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal currentUser
+    ) {
+        Tournament tournament = tournamentManagementService.completeTournament(id, currentUser.getId());
+        return ResponseEntity.ok(tournamentMapper.toDto(tournament));
+    }
+
 
 }

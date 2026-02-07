@@ -43,6 +43,7 @@ public class PlayerMatchService {
     private final MatchRepository matchRepository;
     private final UserRepository userRepository;
     private final ScoreRepository scoreRepository;
+    private final com.tourney.service.match.SingleMatchService singleMatchService;
 
     public Match getCurrentMatchForPlayer(Tournament tournament, Long playerId) {
         return matchRepository.findByTournamentAndPlayer(
@@ -66,7 +67,10 @@ public class PlayerMatchService {
         }
 
         // Sprawdź czy gracz musi zgłosić gotowość
-        if (currentMatch.getStatus() == MatchStatus.SCHEDULED
+        // Dla meczów turniejowych sprawdzamy również IN_PROGRESS (runda może być w trakcie)
+        boolean isTournamentMatch = currentMatch instanceof com.tourney.domain.games.TournamentMatch;
+        if ((currentMatch.getStatus() == MatchStatus.SCHEDULED || 
+             (currentMatch.getStatus() == MatchStatus.IN_PROGRESS && isTournamentMatch))
                 && !currentMatch.isPlayerReady(playerId)) {
             return true;
         }
@@ -158,6 +162,7 @@ public class PlayerMatchService {
 
         return CurrentMatchDTO.builder()
                 .matchId(match.getId())
+                .tableNumber(match.getTableNumber())
                 .opponentName(getOpponentName(match, playerId))
                 .status(match.getStatus())
                 .startTime(match.getStartTime())
@@ -175,9 +180,22 @@ public class PlayerMatchService {
 
         validatePlayerInMatch(match, playerId);
 
-        // nie pozwalamy zgłaszać ready po starcie
-        if (match.getStatus() == MatchStatus.IN_PROGRESS) {
+        // Dla meczów turniejowych pozwalamy na ready nawet gdy runda jest w trakcie,
+        // o ile nie ma jeszcze wyników (faktyczna rozgrywka nie została rozpoczęta)
+        boolean isTournamentMatch = match instanceof com.tourney.domain.games.TournamentMatch;
+        
+        // Dla pojedynczych meczów: mogą być w SCHEDULED (przed rozpoczęciem)
+        // Dla turniejowych: mogą być w IN_PROGRESS (runda w trakcie) jeśli nie ma jeszcze wyników
+        if (match.getStatus() == MatchStatus.IN_PROGRESS && !isTournamentMatch) {
             throw new IllegalStateException("Nie można zmienić gotowości po rozpoczęciu rozgrywki.");
+        }
+        
+        // Dla meczów turniejowych sprawdzamy czy są już wyniki
+        if (isTournamentMatch) {
+            boolean hasScores = scoreRepository.findAllByMatchIdWithRound(matchId).size() > 0;
+            if (hasScores) {
+                throw new IllegalStateException("Nie można zmienić gotowości - rozgrywka już trwa.");
+            }
         }
 
         // hotseat: tylko player1 może zgłosić gotowość
@@ -255,8 +273,9 @@ public class PlayerMatchService {
             throw new IllegalArgumentException("Brak uprawnień do uruchomienia tej rozgrywki.");
         }
 
-        // Nie można wystartować drugi raz
-        if (match.getStatus() == MatchStatus.IN_PROGRESS || match.getStartTime() != null) {
+        // Sprawdź czy faktycznie rozgrywka już się rozpoczęła (są wyniki)
+        boolean hasScores = scoreRepository.findAllByMatchIdWithRound(matchId).size() > 0;
+        if (hasScores) {
             throw new IllegalStateException("Rozgrywka została już rozpoczęta.");
         }
 
@@ -271,6 +290,12 @@ public class PlayerMatchService {
             if (!match.areBothPlayersReady()) {
                 throw new IllegalStateException("Nie można rozpocząć: obaj gracze muszą zgłosić gotowość (ready).");
             }
+        }
+
+        // Dla pojedynczych meczów: inicjalizuj Score przy rozpoczęciu
+        boolean isSingleMatch = match instanceof com.tourney.domain.games.SingleMatch;
+        if (isSingleMatch) {
+            singleMatchService.startSingleMatch(matchId, currentUserId);
         }
 
         LocalDateTime now = LocalDateTime.now();

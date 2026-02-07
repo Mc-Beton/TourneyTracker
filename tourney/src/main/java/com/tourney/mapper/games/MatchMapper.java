@@ -1,6 +1,7 @@
 package com.tourney.mapper.games;
 
 import com.tourney.domain.games.Match;
+import com.tourney.domain.games.TournamentMatch;
 import com.tourney.dto.games.MatchDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -18,12 +19,18 @@ public class MatchMapper {
             return null;
         }
 
+        Long roundId = null;
+        if (match instanceof TournamentMatch tournamentMatch) {
+            roundId = tournamentMatch.getTournamentRound() != null ? 
+                      tournamentMatch.getTournamentRound().getId() : null;
+        }
+
         return MatchDTO.builder()
                 .id(match.getId())
                 .startTime(match.getStartTime())
                 .gameDurationMinutes(match.getGameDurationMinutes())
                 .resultSubmissionDeadline(match.getResultSubmissionDeadline())
-                .roundId(match.getTournamentRound() != null ? match.getTournamentRound().getId() : null)
+                .roundId(roundId)
                 .player1Id(match.getPlayer1() != null ? match.getPlayer1().getId() : null)
                 .player2Id(match.getPlayer2() != null ? match.getPlayer2().getId() : null)
                 .rounds(match.getRounds() != null ?
@@ -35,24 +42,5 @@ public class MatchMapper {
                 .build();
     }
 
-    public Match toEntity(MatchDTO dto) {
-        if (dto == null) {
-            return null;
-        }
-
-        Match match = new Match();
-        match.setId(dto.getId());
-        match.setStartTime(dto.getStartTime());
-        match.setGameDurationMinutes(dto.getGameDurationMinutes());
-        match.setResultSubmissionDeadline(dto.getResultSubmissionDeadline());
-        match.setMatchResult(dto.getMatchResult());
-
-        if (dto.getRounds() != null) {
-            match.setRounds(dto.getRounds().stream()
-                    .map(matchRoundMapper::toEntity)
-                    .collect(Collectors.toList()));
-        }
-
-        return match;
-    }
+    // toEntity removed - use specific SingleMatchService/TournamentMatchService instead
 }

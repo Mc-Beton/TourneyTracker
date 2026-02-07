@@ -2,6 +2,8 @@ package com.tourney.dto.tournament;
 
 import com.tourney.domain.scores.ScoreType;
 import com.tourney.domain.scores.ScoringSystem;
+import com.tourney.domain.scores.TournamentPointsSystem;
+import com.tourney.domain.tournament.RoundStartMode;
 import lombok.Builder;
 import lombok.Data;
 
@@ -29,6 +31,12 @@ public class CreateTournamentDTO {
     @Min(value = 15, message = "Minimalna długość rundy to 15 minut")
     private int roundDurationMinutes;
     
+    // Czas dodatkowy na wpisanie punktów (domyślnie 15 min)
+    private Integer scoreSubmissionExtraMinutes = 15;
+    
+    // Tryb startowania meczów
+    private RoundStartMode roundStartMode = RoundStartMode.ALL_MATCHES_TOGETHER;
+    
     @NotNull(message = "System gry jest wymagany")
     private Long gameSystemId;
     
@@ -41,10 +49,19 @@ public class CreateTournamentDTO {
     private String location;
     private String venue;
     
-    // Pola związane z systemem punktacji
+    // Limit punktów armii
+    private Integer armyPointsLimit;
+    
+    // Pola związane z systemem punktacji małych punktów (Score Points)
     private ScoringSystem scoringSystem;
     private Set<ScoreType> enabledScoreTypes;
     private boolean requireAllScoreTypes;
     private Integer minScore;
     private Integer maxScore;
+    
+    // Pola związane z systemem dużych punktów (Tournament Points)
+    private TournamentPointsSystem tournamentPointsSystem;
+    private Integer pointsForWin;
+    private Integer pointsForDraw;
+    private Integer pointsForLoss;
 }

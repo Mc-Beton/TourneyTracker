@@ -2,7 +2,7 @@ package com.tourney.domain.tournament;
 
 import com.tourney.domain.participant.TournamentParticipant;
 import com.tourney.domain.systems.GameSystem;
-import com.tourney.domain.user.User;
+import com.common.domain.User;
 import com.tourney.dto.tournament.TournamentStatus;
 import com.tourney.dto.tournament.TournamentType;
 import jakarta.persistence.*;
@@ -31,6 +31,13 @@ public class Tournament {
     private int numberOfRounds;
     private int roundDurationMinutes;
     
+    // Czas dodatkowy (w minutach) na wpisanie punktów po zakończeniu meczu
+    private Integer scoreSubmissionExtraMinutes = 15;
+    
+    // Tryb startowania meczów w rundzie
+    @Enumerated(EnumType.STRING)
+    private RoundStartMode roundStartMode = RoundStartMode.ALL_MATCHES_TOGETHER;
+    
     @Enumerated(EnumType.STRING)
     private TournamentStatus status = TournamentStatus.DRAFT;
 
@@ -48,7 +55,10 @@ public class Tournament {
     private String location;
     private String venue;
     
-    @OneToOne
+    // Limit punktów armii dla turnieju
+    private Integer armyPointsLimit;
+    
+    @ManyToOne
     @JoinColumn(name = "game_system_id")
     private GameSystem gameSystem;
 
@@ -62,6 +72,10 @@ public class Tournament {
     @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("roundNumber ASC")
     private List<TournamentRound> rounds = new ArrayList<>();
+    
+    @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("roundNumber ASC")
+    private List<TournamentRoundDefinition> roundDefinitions = new ArrayList<>();
 
     @OneToOne(mappedBy = "tournament", cascade = CascadeType.ALL, orphanRemoval = true)
     private TournamentScoring tournamentScoring;

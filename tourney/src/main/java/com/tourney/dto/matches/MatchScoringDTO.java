@@ -15,6 +15,10 @@ public class MatchScoringDTO {
     private String player2Name;
     private int currentRound;
     private int totalRounds;
+    
+    private Integer gameDurationMinutes; // czas trwania rundy turniejowej
+    private java.time.LocalDateTime resultSubmissionDeadline; // deadline do wysyłania wyników
+    private java.time.LocalDateTime endTime; // czas zakończenia meczu
 
     private boolean primaryScoreEnabled;
     private boolean secondaryScoreEnabled;

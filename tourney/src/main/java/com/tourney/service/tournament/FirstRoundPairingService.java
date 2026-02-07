@@ -1,10 +1,12 @@
 package com.tourney.service.tournament;
 
 import com.tourney.domain.games.Match;
+import com.tourney.domain.games.MatchRound;
+import com.tourney.domain.games.TournamentMatch;
 import com.tourney.domain.participant.TournamentParticipant;
 import com.tourney.domain.tournament.Tournament;
 import com.tourney.domain.tournament.TournamentRound;
-import com.tourney.domain.user.User;
+import com.common.domain.User;
 import com.tourney.repository.games.MatchRepository;
 import com.tourney.repository.tournament.TournamentRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,10 +31,12 @@ public class FirstRoundPairingService {
 
         validatePlayerCount(tournament);
 
-        List<User> confirmedPlayers = tournament.getParticipantLinks().stream()
-                .filter(TournamentParticipant::isConfirmed)
-                .map(TournamentParticipant::getUser)
-                .toList();
+        List<User> confirmedPlayers = new ArrayList<>(
+                tournament.getParticipantLinks().stream()
+                        .filter(TournamentParticipant::isConfirmed)
+                        .map(TournamentParticipant::getUser)
+                        .toList()
+        );
 
         Collections.shuffle(confirmedPlayers);
         
@@ -86,23 +90,43 @@ public class FirstRoundPairingService {
     }
 
     private Match createMatch(User player1, User player2, TournamentRound round, int tableNumber) {
-        Match match = new Match();
+        TournamentMatch match = new TournamentMatch();
         match.setPlayer1(player1);
         match.setPlayer2(player2);
         match.setTournamentRound(round);
         match.setStartTime(LocalDateTime.now());
         match.setTableNumber(tableNumber);
         match.setGameDurationMinutes(round.getTournament().getRoundDurationMinutes());
+        
+        // Tworzenie rund meczu na podstawie defaultRoundNumber z systemu gry
+        int numberOfRounds = round.getTournament().getGameSystem().getDefaultRoundNumber();
+        for (int i = 1; i <= numberOfRounds; i++) {
+            MatchRound matchRound = new MatchRound();
+            matchRound.setRoundNumber(i);
+            matchRound.setMatch(match);
+            match.getRounds().add(matchRound);
+        }
+        
         return match;
     }
 
     private Match createByeMatch(User player, TournamentRound round, int tableNumber) {
-        Match match = new Match();
+        TournamentMatch match = new TournamentMatch();
         match.setPlayer1(player);
         match.setTournamentRound(round);
         match.setStartTime(LocalDateTime.now());
         match.setTableNumber(tableNumber);
         match.setGameDurationMinutes(round.getTournament().getRoundDurationMinutes());
+        
+        // Tworzenie rund meczu na podstawie defaultRoundNumber z systemu gry
+        int numberOfRounds = round.getTournament().getGameSystem().getDefaultRoundNumber();
+        for (int i = 1; i <= numberOfRounds; i++) {
+            MatchRound matchRound = new MatchRound();
+            matchRound.setRoundNumber(i);
+            matchRound.setMatch(match);
+            match.getRounds().add(matchRound);
+        }
+        
         return match;
     }
 }

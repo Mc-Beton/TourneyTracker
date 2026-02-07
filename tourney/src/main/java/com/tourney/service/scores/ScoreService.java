@@ -6,7 +6,7 @@ import com.tourney.domain.scores.MatchSide;
 import com.tourney.domain.scores.Score;
 import com.tourney.domain.scores.ScoreType;
 import com.tourney.domain.tournament.Tournament;
-import com.tourney.domain.user.User;
+import com.common.domain.User;
 import com.tourney.dto.scores.RoundScoreSubmissionDTO;
 import com.tourney.repository.games.MatchRoundRepository;
 import com.tourney.repository.scores.ScoreRepository;
@@ -44,8 +44,8 @@ public class ScoreService {
         }
 
         // Walidacje turniejowe (jeśli dotyczy)
-        if (match.getTournamentRound() != null) {
-            Tournament tournament = match.getTournamentRound().getTournament();
+        if (match instanceof com.tourney.domain.games.TournamentMatch tournamentMatch) {
+            Tournament tournament = tournamentMatch.getTournamentRound().getTournament();
             tournamentScoringService.validateScoreSubmission(tournament, match, round);
             submissionDTO.getScores().forEach((scoreType, value) -> validateScoreType(tournament, scoreType));
         }

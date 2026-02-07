@@ -1,7 +1,7 @@
 package com.tourney.domain.scores;
 
 import com.tourney.domain.games.MatchRound;
-import com.tourney.domain.user.User;
+import com.common.domain.User;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;

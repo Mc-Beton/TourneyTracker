@@ -1,6 +1,8 @@
 package com.tourney.controller.systems;
 
 import com.tourney.dto.systems.IdNameDTO;
+import com.tourney.repository.systems.ArmyFactionRepository;
+import com.tourney.repository.systems.ArmyRepository;
 import com.tourney.repository.systems.DeploymentRepository;
 import com.tourney.repository.systems.GameSystemRepository;
 import com.tourney.repository.systems.PrimaryMissionRepository;
@@ -18,6 +20,8 @@ public class SystemDictionaryController {
     private final GameSystemRepository gameSystemRepository;
     private final DeploymentRepository deploymentRepository;
     private final PrimaryMissionRepository primaryMissionRepository;
+    private final ArmyFactionRepository armyFactionRepository;
+    private final ArmyRepository armyRepository;
 
     @GetMapping("/game-systems")
     public ResponseEntity<List<IdNameDTO>> getGameSystems() {
@@ -39,6 +43,22 @@ public class SystemDictionaryController {
     public ResponseEntity<List<IdNameDTO>> getPrimaryMissions(@PathVariable Long gameSystemId) {
         List<IdNameDTO> result = primaryMissionRepository.findByGameSystemIdOrderByNameAsc(gameSystemId).stream()
                 .map(pm -> IdNameDTO.builder().id(pm.getId()).name(pm.getName()).build())
+                .toList();
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/{gameSystemId}/army-factions")
+    public ResponseEntity<List<IdNameDTO>> getArmyFactions(@PathVariable Long gameSystemId) {
+        List<IdNameDTO> result = armyFactionRepository.findByGameSystemIdOrderByNameAsc(gameSystemId).stream()
+                .map(af -> IdNameDTO.builder().id(af.getId()).name(af.getName()).build())
+                .toList();
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/army-factions/{armyFactionId}/armies")
+    public ResponseEntity<List<IdNameDTO>> getArmies(@PathVariable Long armyFactionId) {
+        List<IdNameDTO> result = armyRepository.findByArmyFactionIdOrderByNameAsc(armyFactionId).stream()
+                .map(a -> IdNameDTO.builder().id(a.getId()).name(a.getName()).build())
                 .toList();
         return ResponseEntity.ok(result);
     }

@@ -1,4 +1,4 @@
-package com.tourney.user_service.domain;
+package com.common.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -19,6 +19,10 @@ public class User {
     @Column(nullable = false)
     private String name;
 
+    private String realName;
+    
+    private String surname;
+
     @Column(unique = true, nullable = false)
     private String email;
 
@@ -27,7 +31,7 @@ public class User {
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
-            name = "user_roles", // Musi być taka sama nazwa jak w serwisie tourney
+            name = "user_roles",
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "role_id")
     )

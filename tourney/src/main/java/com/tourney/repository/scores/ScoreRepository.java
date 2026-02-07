@@ -4,7 +4,7 @@ import com.tourney.domain.games.MatchRound;
 import com.tourney.domain.scores.MatchSide;
 import com.tourney.domain.scores.Score;
 import com.tourney.domain.scores.ScoreType;
-import com.tourney.domain.user.User;
+import com.common.domain.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

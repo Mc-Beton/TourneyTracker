@@ -1,6 +1,6 @@
 package com.tourney.dto.user;
 
-import com.tourney.domain.user.UserRole;
+import com.common.domain.UserRole;
 import lombok.Builder;
 import lombok.Data;
 

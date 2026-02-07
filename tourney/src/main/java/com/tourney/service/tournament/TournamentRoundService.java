@@ -1,14 +1,20 @@
 package com.tourney.service.tournament;
 
 import com.tourney.domain.games.Match;
+import com.tourney.domain.games.MatchRound;
 import com.tourney.domain.games.MatchStatus;
 import com.tourney.domain.games.RoundStatus;
+import com.tourney.domain.tournament.RoundStartMode;
 import com.tourney.domain.tournament.Tournament;
 import com.tourney.domain.tournament.TournamentRound;
 import com.tourney.dto.rounds.RoundCompletionSummaryDTO;
+import com.tourney.dto.tournament.MatchPairDTO;
+import com.tourney.dto.tournament.RoundStatusDTO;
+import com.tourney.dto.tournament.TournamentRoundViewDTO;
 import com.tourney.exception.TournamentException;
 import com.tourney.exception.TournamentNotFoundException;
 import com.tourney.repository.games.MatchRepository;
+import com.tourney.repository.scores.ScoreRepository;
 import com.tourney.repository.tournament.TournamentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -16,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -27,6 +34,7 @@ import static com.tourney.exception.TournamentErrorCode.*;
 public class TournamentRoundService {
     private final TournamentRepository tournamentRepository;
     private final MatchRepository matchRepository;
+    private final ScoreRepository scoreRepository;
 
 
     public int getNextRoundNumber(Long tournamentId) {
@@ -150,6 +158,283 @@ public class TournamentRoundService {
             throw new TournamentException(INVALID_ROUND_STATE,
                     "Poprzednia runda (nr " + (roundNumber - 1) + ") nie została zakończona");
         }
+    }
+
+    /**
+     * Rozpoczyna rundę - ustawia czasy dla meczów
+     */
+    public void startRound(Long tournamentId, int roundNumber) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new TournamentNotFoundException(tournamentId));
+
+        TournamentRound round = tournament.getRounds().stream()
+                .filter(r -> r.getRoundNumber() == roundNumber)
+                .findFirst()
+                .orElseThrow(() -> new TournamentException(ROUND_NOT_FOUND,
+                        "Nie znaleziono rundy " + roundNumber));
+
+        if (tournament.getRoundStartMode() == RoundStartMode.ALL_MATCHES_TOGETHER) {
+            // Wszystkie mecze startują jednocześnie
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime endTime = now.plusMinutes(tournament.getRoundDurationMinutes());
+            LocalDateTime deadline = endTime.plusMinutes(
+                    tournament.getScoreSubmissionExtraMinutes() != null 
+                            ? tournament.getScoreSubmissionExtraMinutes() 
+                            : 15
+            );
+
+            round.getMatches().forEach(match -> {
+                match.setStartTime(now);
+                // gameEndTime is set only when match actually finishes, not at start
+                match.setResultSubmissionDeadline(deadline);
+                match.setGameDurationMinutes(tournament.getRoundDurationMinutes());
+                match.setStatus(MatchStatus.IN_PROGRESS);
+                
+                // Automatycznie rozpocznij pierwszą rundę meczu turniejowego
+                if (match.getRounds() != null && !match.getRounds().isEmpty()) {
+                    MatchRound firstRound = match.getRounds().stream()
+                            .filter(r -> r.getRoundNumber() == 1)
+                            .findFirst()
+                            .orElse(null);
+                    if (firstRound != null && firstRound.getStartTime() == null) {
+                        firstRound.setStartTime(now);
+                    }
+                }
+            });
+
+            round.setStatus(RoundStatus.IN_PROGRESS);
+            tournament.setCurrentRound(roundNumber);
+            tournament.setCurrentRoundStartTime(now);
+            tournament.setCurrentRoundEndTime(endTime);
+        } else {
+            // Mecze startują osobno - tylko przygotuj rundę
+            round.setStatus(RoundStatus.NOT_STARTED);
+            tournament.setCurrentRound(roundNumber);
+        }
+
+        tournamentRepository.save(tournament);
+    }
+
+    /**
+     * Rozpoczyna pojedynczy mecz (dla trybu INDIVIDUAL_MATCHES)
+     */
+    public void startIndividualMatch(Long tournamentId, int roundNumber, Long matchId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new TournamentNotFoundException(tournamentId));
+
+        // Weryfikacja trybu startowania
+        if (tournament.getRoundStartMode() != RoundStartMode.INDIVIDUAL_MATCHES) {
+            throw new TournamentException(INVALID_TOURNAMENT_STATE,
+                    "Turniej nie jest w trybie INDIVIDUAL_MATCHES");
+        }
+
+        TournamentRound round = tournament.getRounds().stream()
+                .filter(r -> r.getRoundNumber() == roundNumber)
+                .findFirst()
+                .orElseThrow(() -> new TournamentException(ROUND_NOT_FOUND,
+                        "Nie znaleziono rundy " + roundNumber));
+
+        Match match = round.getMatches().stream()
+                .filter(m -> m.getId().equals(matchId))
+                .findFirst()
+                .orElseThrow(() -> new TournamentException(ROUND_NOT_FOUND,
+                        "Nie znaleziono meczu o ID " + matchId));
+
+        // Sprawdź czy mecz jest już rozpoczęty
+        if (match.getStatus() == MatchStatus.IN_PROGRESS || match.getStatus() == MatchStatus.COMPLETED) {
+            throw new TournamentException(INVALID_MATCH_STATE,
+                    "Mecz jest już rozpoczęty lub zakończony");
+        }
+
+        // Rozpocznij mecz
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime endTime = now.plusMinutes(tournament.getRoundDurationMinutes());
+        LocalDateTime deadline = endTime.plusMinutes(
+                tournament.getScoreSubmissionExtraMinutes() != null 
+                        ? tournament.getScoreSubmissionExtraMinutes() 
+                        : 15
+        );
+
+        match.setStartTime(now);
+        match.setResultSubmissionDeadline(deadline);
+        match.setGameDurationMinutes(tournament.getRoundDurationMinutes());
+        match.setStatus(MatchStatus.IN_PROGRESS);
+
+        // Automatycznie rozpocznij pierwszą rundę meczu turniejowego
+        if (match.getRounds() != null && !match.getRounds().isEmpty()) {
+            MatchRound firstRound = match.getRounds().stream()
+                    .filter(r -> r.getRoundNumber() == 1)
+                    .findFirst()
+                    .orElse(null);
+            if (firstRound != null && firstRound.getStartTime() == null) {
+                firstRound.setStartTime(now);
+            }
+        }
+
+        // Jeśli to pierwszy mecz w rundzie, ustaw status rundy na IN_PROGRESS
+        if (round.getStatus() == RoundStatus.NOT_STARTED) {
+            round.setStatus(RoundStatus.IN_PROGRESS);
+        }
+
+        tournamentRepository.save(tournament);
+    }
+
+    /**
+     * Przedłuża czas na wpisanie punktów
+     */
+    public void extendSubmissionDeadline(Long tournamentId, int roundNumber, int additionalMinutes) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new TournamentNotFoundException(tournamentId));
+
+        TournamentRound round = tournament.getRounds().stream()
+                .filter(r -> r.getRoundNumber() == roundNumber)
+                .findFirst()
+                .orElseThrow(() -> new TournamentException(ROUND_NOT_FOUND,
+                        "Nie znaleziono rundy " + roundNumber));
+
+        round.getMatches().forEach(match -> {
+            if (match.getResultSubmissionDeadline() != null) {
+                match.setResultSubmissionDeadline(
+                        match.getResultSubmissionDeadline().plusMinutes(additionalMinutes)
+                );
+            }
+        });
+
+        tournamentRepository.save(tournament);
+    }
+
+    /**
+     * Pobiera status rundy dla organizatora (sprawdza kto nie wpisał punktów)
+     */
+    @Transactional(readOnly = true)
+    public RoundStatusDTO getRoundStatusForOrganizer(Long tournamentId, int roundNumber) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new TournamentNotFoundException(tournamentId));
+
+        TournamentRound round = tournament.getRounds().stream()
+                .filter(r -> r.getRoundNumber() == roundNumber)
+                .findFirst()
+                .orElseThrow(() -> new TournamentException(ROUND_NOT_FOUND,
+                        "Nie znaleziono rundy " + roundNumber));
+
+        List<String> playersWithoutScores = new ArrayList<>();
+        int totalMatches = round.getMatches().size();
+        int completedMatches = 0;
+
+        for (Match match : round.getMatches()) {
+            boolean player1HasScores = hasPlayerSubmittedScores(match, match.getPlayer1().getId());
+            boolean player2HasScores = match.getPlayer2() != null 
+                    && hasPlayerSubmittedScores(match, match.getPlayer2().getId());
+
+            if (player1HasScores && (match.getPlayer2() == null || player2HasScores)) {
+                completedMatches++;
+            } else {
+                if (!player1HasScores) {
+                    playersWithoutScores.add(match.getPlayer1().getName());
+                }
+                if (match.getPlayer2() != null && !player2HasScores) {
+                    playersWithoutScores.add(match.getPlayer2().getName());
+                }
+            }
+        }
+
+        return RoundStatusDTO.builder()
+                .roundNumber(roundNumber)
+                .allScoresSubmitted(playersWithoutScores.isEmpty())
+                .playersWithoutScores(playersWithoutScores)
+                .totalMatches(totalMatches)
+                .completedMatches(completedMatches)
+                .build();
+    }
+
+    /**
+     * Pobiera widok wszystkich rund turnieju
+     */
+    @Transactional(readOnly = true)
+    public List<TournamentRoundViewDTO> getTournamentRoundsView(Long tournamentId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new TournamentNotFoundException(tournamentId));
+
+        return tournament.getRounds().stream()
+                .sorted((r1, r2) -> Integer.compare(r1.getRoundNumber(), r2.getRoundNumber()))
+                .map(round -> TournamentRoundViewDTO.builder()
+                        .roundNumber(round.getRoundNumber())
+                        .status(round.getStatus().name())
+                        .matches(round.getMatches().stream()
+                                .map(this::toMatchPairDTO)
+                                .collect(Collectors.toList()))
+                        .canStart(canStartRound(tournament, round))
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    private boolean canStartRound(Tournament tournament, TournamentRound round) {
+        // Runda 1 może startować zawsze (jeśli pary są utworzone)
+        if (round.getRoundNumber() == 1) {
+            return !round.getMatches().isEmpty() && round.getStatus() == RoundStatus.IN_PROGRESS;
+        }
+
+        // Kolejne rundy wymagają zakończenia poprzedniej
+        TournamentRound previousRound = tournament.getRounds().stream()
+                .filter(r -> r.getRoundNumber() == round.getRoundNumber() - 1)
+                .findFirst()
+                .orElse(null);
+
+        return previousRound != null 
+                && previousRound.getStatus() == RoundStatus.COMPLETED
+                && round.getStatus() == RoundStatus.IN_PROGRESS;
+    }
+
+    private MatchPairDTO toMatchPairDTO(Match match) {
+        // Oblicz sumę punktów dla każdego gracza ze wszystkich rund
+        var scores = scoreRepository.findAllByMatchIdWithRound(match.getId());
+        
+        long player1Total = scores.stream()
+                .filter(s -> s.getSide() == com.tourney.domain.scores.MatchSide.PLAYER1)
+                .mapToLong(s -> s.getScore() != null ? s.getScore() : 0L)
+                .sum();
+                
+        long player2Total = scores.stream()
+                .filter(s -> s.getSide() == com.tourney.domain.scores.MatchSide.PLAYER2)
+                .mapToLong(s -> s.getScore() != null ? s.getScore() : 0L)
+                .sum();
+        
+        // Określ zwycięzcę jeśli mecz zakończony
+        String winner = null;
+        if (match.getStatus() == MatchStatus.COMPLETED || match.isCompleted()) {
+            if (player1Total > player2Total) {
+                winner = "PLAYER1";
+            } else if (player2Total > player1Total) {
+                winner = "PLAYER2";
+            } else {
+                winner = "DRAW";
+            }
+        }
+        
+        return MatchPairDTO.builder()
+                .matchId(match.getId())
+                .tableNumber(match.getTableNumber() != null ? match.getTableNumber() : 0)
+                .player1Id(match.getPlayer1().getId())
+                .player1Name(match.getPlayer1().getName())
+                .player1TournamentPoints(null) // TODO: obliczyć
+                .player2Id(match.getPlayer2() != null ? match.getPlayer2().getId() : null)
+                .player2Name(match.getPlayer2() != null ? match.getPlayer2().getName() : "BYE")
+                .player2TournamentPoints(null) // TODO: obliczyć
+                .status(match.getStatus().name())
+                .startTime(match.getStartTime())
+                .gameEndTime(match.getGameEndTime())
+                .gameDurationMinutes(match.getGameDurationMinutes())
+                .resultSubmissionDeadline(match.getResultSubmissionDeadline())
+                .scoresSubmitted(match.isCompleted())
+                .player1TotalScore(player1Total)
+                .player2TotalScore(player2Total)
+                .matchWinner(winner)
+                .build();
+    }
+
+    private boolean hasPlayerSubmittedScores(Match match, Long playerId) {
+        return scoreRepository.findAllByMatchIdWithRound(match.getId()).stream()
+                .anyMatch(score -> score.getUser().getId().equals(playerId));
     }
 
 }

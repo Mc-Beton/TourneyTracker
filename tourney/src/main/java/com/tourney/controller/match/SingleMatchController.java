@@ -1,7 +1,7 @@
 package com.tourney.controller.match;
 
 import com.common.security.UserPrincipal;
-import com.tourney.domain.games.Match;
+import com.tourney.domain.games.SingleMatch;
 import com.tourney.dto.matches.CreateSingleMatchDTO;
 import com.tourney.dto.matches.MatchDetailsDTO;
 import com.tourney.dto.matches.MatchSummaryDTO;
@@ -29,7 +29,7 @@ public class SingleMatchController {
             @Valid @RequestBody CreateSingleMatchDTO dto,
             @AuthenticationPrincipal UserPrincipal currentUser
     ) {
-        Match match = singleMatchService.createSingleMatch(dto, currentUser.getId());
+        SingleMatch match = singleMatchService.createSingleMatch(dto, currentUser.getId());
         return ResponseEntity.ok(singleMatchMapper.toDto(match));
     }
 
