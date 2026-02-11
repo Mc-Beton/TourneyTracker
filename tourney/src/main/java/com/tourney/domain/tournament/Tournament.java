@@ -41,6 +41,10 @@ public class Tournament {
     @Enumerated(EnumType.STRING)
     private TournamentStatus status = TournamentStatus.DRAFT;
 
+    // Wewnętrzny szczegółowy status postępu turnieju
+    @Enumerated(EnumType.STRING)
+    private TournamentPhase phase = TournamentPhase.AWAITING_PAIRINGS;
+
     @Enumerated(EnumType.STRING)
     private TournamentType type = TournamentType.SWISS;
 
@@ -94,8 +98,12 @@ public class Tournament {
     }
 
     public boolean canRegister() {
+        long confirmedCount = participantLinks.stream()
+                .filter(TournamentParticipant::isConfirmed)
+                .count();
+        
         return registrationOpen && 
-               (maxParticipants == null || participantLinks.size() < maxParticipants) &&
+               (maxParticipants == null || confirmedCount < maxParticipants) &&
                (registrationDeadline == null || LocalDateTime.now().isBefore(registrationDeadline)) &&
                status == TournamentStatus.ACTIVE;
     }

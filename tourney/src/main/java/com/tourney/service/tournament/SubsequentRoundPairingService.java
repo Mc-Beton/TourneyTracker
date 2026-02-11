@@ -6,6 +6,7 @@ import com.tourney.domain.player.PlayerStats;
 import com.tourney.domain.scores.Score;
 import com.tourney.domain.scores.ScoreType;
 import com.tourney.domain.tournament.Tournament;
+import com.tourney.domain.tournament.TournamentPhase;
 import com.tourney.domain.tournament.TournamentRound;
 import com.tourney.domain.tournament.TournamentRoundDefinition;
 import com.common.domain.User;
@@ -38,6 +39,10 @@ public class SubsequentRoundPairingService {
         Set<String> previousPairings = getPreviousPairings(tournament);
         
         List<Match> newMatches = createMatches(rankedPlayers, previousPairings, currentRound);
+        
+        // Zmiana fazy turnieju - pary dobrane, czeka na start
+        tournament.setPhase(TournamentPhase.PAIRINGS_READY);
+        tournamentRepository.save(tournament);
         
         return matchRepository.saveAll(newMatches);
     }
@@ -127,6 +132,7 @@ public class SubsequentRoundPairingService {
     private List<Match> createMatches(List<PlayerStats> rankedPlayers, Set<String> previousPairings, TournamentRound currentRound) {
         List<Match> matches = new ArrayList<>();
         Set<Long> pairedPlayers = new HashSet<>();
+        int tableNumber = 1;
 
         // Parowanie główne
         for (int i = 0; i < rankedPlayers.size(); i++) {
@@ -134,12 +140,15 @@ public class SubsequentRoundPairingService {
                 continue;
             }
 
-            Optional<Match> match = tryCreateMatch(rankedPlayers, i, pairedPlayers, previousPairings, currentRound);
-            match.ifPresent(matches::add);
+            Optional<Match> match = tryCreateMatch(rankedPlayers, i, pairedPlayers, previousPairings, currentRound, tableNumber);
+            if (match.isPresent()) {
+                matches.add(match.get());
+                tableNumber++;
+            }
         }
 
         // Obsługa nieparzystej liczby graczy
-        handleOddNumberOfPlayers(rankedPlayers, pairedPlayers, matches, currentRound);
+        handleOddNumberOfPlayers(rankedPlayers, pairedPlayers, matches, currentRound, tableNumber);
 
         return matches;
     }
@@ -149,7 +158,8 @@ public class SubsequentRoundPairingService {
             int currentPlayerIndex,
             Set<Long> pairedPlayers,
             Set<String> previousPairings,
-            TournamentRound currentRound
+            TournamentRound currentRound,
+            int tableNumber
     ) {
         PlayerStats currentPlayer = rankedPlayers.get(currentPlayerIndex);
         if (pairedPlayers.contains(currentPlayer.getUser().getId())) {
@@ -164,7 +174,7 @@ public class SubsequentRoundPairingService {
         );
 
         if (opponent.isPresent()) {
-            Match match = createMatch(currentPlayer.getUser(), opponent.get(), currentRound);
+            Match match = createMatch(currentPlayer.getUser(), opponent.get(), currentRound, tableNumber);
             pairedPlayers.add(currentPlayer.getUser().getId());
             pairedPlayers.add(opponent.get().getId());
             return Optional.of(match);
@@ -218,12 +228,13 @@ public class SubsequentRoundPairingService {
                 .findFirst();
     }
 
-    private Match createMatch(User player1, User player2, TournamentRound round) {
+    private Match createMatch(User player1, User player2, TournamentRound round, int tableNumber) {
         TournamentMatch match = new TournamentMatch();
         match.setPlayer1(player1);
         match.setPlayer2(player2);
         match.setTournamentRound(round);
-        match.setStartTime(LocalDateTime.now());
+        match.setTableNumber(tableNumber);
+        // startTime będzie ustawiony dopiero przy rozpoczęciu rundy
         match.setGameDurationMinutes(round.getTournament().getRoundDurationMinutes());
         
         // Tworzenie rund meczu na podstawie defaultRoundNumber z systemu gry
@@ -242,7 +253,8 @@ public class SubsequentRoundPairingService {
             List<PlayerStats> rankedPlayers,
             Set<Long> pairedPlayers,
             List<Match> matches,
-            TournamentRound currentRound
+            TournamentRound currentRound,
+            int tableNumber
     ) {
         if (pairedPlayers.size() < rankedPlayers.size()) {
             User lastPlayer = rankedPlayers.stream()
@@ -251,16 +263,17 @@ public class SubsequentRoundPairingService {
                     .map(PlayerStats::getUser)
                     .orElseThrow();
 
-            Match byeMatch = createByeMatch(lastPlayer, currentRound);
+            Match byeMatch = createByeMatch(lastPlayer, currentRound, tableNumber);
             matches.add(byeMatch);
         }
     }
 
-    private Match createByeMatch(User player, TournamentRound round) {
+    private Match createByeMatch(User player, TournamentRound round, int tableNumber) {
         com.tourney.domain.games.TournamentMatch byeMatch = new com.tourney.domain.games.TournamentMatch();
         byeMatch.setPlayer1(player);
         byeMatch.setTournamentRound(round);
-        byeMatch.setStartTime(LocalDateTime.now());
+        byeMatch.setTableNumber(tableNumber);
+        // startTime będzie ustawiony dopiero przy rozpoczęciu rundy
         byeMatch.setGameDurationMinutes(round.getTournament().getRoundDurationMinutes());
         
         // Tworzenie rund meczu na podstawie defaultRoundNumber z systemu gry

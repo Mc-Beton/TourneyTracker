@@ -61,7 +61,12 @@ public class TournamentPointsCalculationService {
      * - 6-10: 12:8
      * - 11-15: 13:7
      * - 16-20: 14:6
-     * - 21+: 15:5
+     * - 21-25: 15:5
+     * - 26-30: 16:4
+     * - 31-35: 17:3
+     * - 36-40: 18:2
+     * - 41-45: 19:1
+     * - 46+: 20:0
      */
     private int calculateStrictPoints(long difference) {
         long absDiff = Math.abs(difference);
@@ -77,8 +82,18 @@ public class TournamentPointsCalculationService {
             return difference > 0 ? 13 : 7; // 13:7 lub 7:13
         } else if (absDiff <= 20) {
             return difference > 0 ? 14 : 6; // 14:6 lub 6:14
-        } else {
+        } else if (absDiff <= 25) {
             return difference > 0 ? 15 : 5; // 15:5 lub 5:15
+        } else if (absDiff <= 30) {
+            return difference > 0 ? 16 : 4; // 16:4 lub 4:16
+        } else if (absDiff <= 35) {
+            return difference > 0 ? 17 : 3; // 17:3 lub 3:17
+        } else if (absDiff <= 40) {
+            return difference > 0 ? 18 : 2; // 18:2 lub 2:18
+        } else if (absDiff <= 45) {
+            return difference > 0 ? 19 : 1; // 19:1 lub 1:19
+        } else {
+            return difference > 0 ? 20 : 0; // 20:0 lub 0:20
         }
     }
 
@@ -90,7 +105,12 @@ public class TournamentPointsCalculationService {
      * - 11-15: 12:8
      * - 16-20: 13:7
      * - 21-25: 14:6
-     * - 26+: 15:5
+     * - 26-30: 15:5
+     * - 31-35: 16:4
+     * - 36-40: 17:3
+     * - 41-45: 18:2
+     * - 46-50: 19:1
+     * - 51+: 20:0
      */
     private int calculateLenientPoints(long difference) {
         long absDiff = Math.abs(difference);
@@ -106,8 +126,18 @@ public class TournamentPointsCalculationService {
             return difference > 0 ? 13 : 7; // 13:7 lub 7:13
         } else if (absDiff <= 25) {
             return difference > 0 ? 14 : 6; // 14:6 lub 6:14
-        } else {
+        } else if (absDiff <= 30) {
             return difference > 0 ? 15 : 5; // 15:5 lub 5:15
+        } else if (absDiff <= 35) {
+            return difference > 0 ? 16 : 4; // 16:4 lub 4:16
+        } else if (absDiff <= 40) {
+            return difference > 0 ? 17 : 3; // 17:3 lub 3:17
+        } else if (absDiff <= 45) {
+            return difference > 0 ? 18 : 2; // 18:2 lub 2:18
+        } else if (absDiff <= 50) {
+            return difference > 0 ? 19 : 1; // 19:1 lub 1:19
+        } else {
+            return difference > 0 ? 20 : 0; // 20:0 lub 0:20
         }
     }
 

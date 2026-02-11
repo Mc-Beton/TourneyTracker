@@ -22,6 +22,7 @@ import com.tourney.repository.systems.PrimaryMissionRepository;
 import com.tourney.repository.user.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -42,6 +43,12 @@ public class SingleMatchService {
     private final PrimaryMissionRepository primaryMissionRepository;
     private final DeploymentRepository deploymentRepository;
     private final ScoreRepository scoreRepository;
+    
+    @Lazy
+    private final com.tourney.service.tournament.TournamentRoundService tournamentRoundService;
+    
+    @Lazy
+    private final com.tourney.service.tournament.ParticipantStatsUpdateService participantStatsUpdateService;
 
     public SingleMatch createSingleMatch(CreateSingleMatchDTO dto, Long currentUserId) {
         validate(dto, currentUserId);
@@ -415,6 +422,27 @@ public class SingleMatchService {
         }
 
         matchRepository.save(match);
+        
+        // Jeśli mecz należy do turnieju, sprawdź czy należy zakończyć rundę
+        if (match instanceof TournamentMatch) {
+            TournamentMatch tournamentMatch = (TournamentMatch) match;
+            if (tournamentMatch.getTournamentRound() != null && 
+                tournamentMatch.getTournamentRound().getTournament() != null) {
+                try {
+                    // Aktualizuj statystyki uczestników
+                    participantStatsUpdateService.updateStatsAfterMatch(match);
+                    
+                    // Sprawdź auto-zakończenie rundy
+                    tournamentRoundService.autoCompleteRoundIfReady(
+                        tournamentMatch.getTournamentRound().getTournament().getId(), 
+                        tournamentMatch.getTournamentRound().getRoundNumber()
+                    );
+                } catch (Exception e) {
+                    // Log but don't fail - match is already completed
+                    System.err.println("Failed to update stats or auto-complete round after finishing match: " + e.getMessage());
+                }
+            }
+        }
 
         // Zwróć pełne podsumowanie (już masz gotowe mapowanie + flagi scoreEnabled)
         return getMatchSummary(matchId, currentUserId);

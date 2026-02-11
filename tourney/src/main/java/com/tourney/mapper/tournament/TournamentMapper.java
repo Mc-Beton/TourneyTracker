@@ -47,6 +47,7 @@ public class TournamentMapper {
                 .armyPointsLimit(tournament.getArmyPointsLimit())
                 .confirmedParticipantsCount(confirmedCount)
                 .status(tournament.getStatus())
+                .phase(tournament.getPhase())
                 .scoringSystem(tournament.getTournamentScoring().getScoringSystem())
                 .enabledScoreTypes(tournament.getTournamentScoring().getEnabledScoreTypes())
                 .requireAllScoreTypes(tournament.getTournamentScoring().isRequireAllScoreTypes())

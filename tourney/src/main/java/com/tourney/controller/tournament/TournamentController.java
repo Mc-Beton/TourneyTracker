@@ -24,6 +24,7 @@ public class TournamentController {
     private final TournamentManagementService tournamentManagementService;
     private final TournamentMapper tournamentMapper;
     private final TournamentStatsService tournamentStatsService;
+    private final com.tourney.service.tournament.ParticipantStatsUpdateService participantStatsUpdateService;
 
     @GetMapping
     public ResponseEntity<Iterable<TournamentResponseDTO>> getAllTournaments() {
@@ -147,6 +148,28 @@ public class TournamentController {
     ) {
         Tournament tournament = tournamentManagementService.completeTournament(id, currentUser.getId());
         return ResponseEntity.ok(tournamentMapper.toDto(tournament));
+    }
+
+    /**
+     * Przelicza statystyki uczestników od nowa dla całego turnieju.
+     * Przydatne przy migracji danych lub naprawie błędów w statystykach.
+     */
+    @PostMapping("/{id}/recalculate-stats")
+    public ResponseEntity<List<ParticipantStatsDTO>> recalculateStats(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal currentUser
+    ) {
+        Tournament tournament = tournamentManagementService.getTournamentById(id);
+        
+        // Tylko organizator może przeliczać statystyki
+        if (!tournament.getOrganizer().getId().equals(currentUser.getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        
+        participantStatsUpdateService.recalculateAllStats(tournament);
+        List<ParticipantStatsDTO> stats = tournamentStatsService.calculateParticipantStats(tournament);
+        
+        return ResponseEntity.ok(stats);
     }
 
 

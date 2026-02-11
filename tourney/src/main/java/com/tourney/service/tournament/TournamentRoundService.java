@@ -4,8 +4,10 @@ import com.tourney.domain.games.Match;
 import com.tourney.domain.games.MatchRound;
 import com.tourney.domain.games.MatchStatus;
 import com.tourney.domain.games.RoundStatus;
+import com.tourney.domain.games.TournamentMatch;
 import com.tourney.domain.tournament.RoundStartMode;
 import com.tourney.domain.tournament.Tournament;
+import com.tourney.domain.tournament.TournamentPhase;
 import com.tourney.domain.tournament.TournamentRound;
 import com.tourney.dto.rounds.RoundCompletionSummaryDTO;
 import com.tourney.dto.tournament.MatchPairDTO;
@@ -16,7 +18,9 @@ import com.tourney.exception.TournamentNotFoundException;
 import com.tourney.repository.games.MatchRepository;
 import com.tourney.repository.scores.ScoreRepository;
 import com.tourney.repository.tournament.TournamentRepository;
+import com.tourney.service.TournamentPointsCalculationService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,20 +35,27 @@ import static com.tourney.exception.TournamentErrorCode.*;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class TournamentRoundService {
     private final TournamentRepository tournamentRepository;
     private final MatchRepository matchRepository;
     private final ScoreRepository scoreRepository;
+    private final TournamentPointsCalculationService tournamentPointsCalculationService;
 
 
     public int getNextRoundNumber(Long tournamentId) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new TournamentNotFoundException(tournamentId));
 
-        return tournament.getRounds().stream()
-                .mapToInt(round -> round.getRoundNumber())
+        // Znajdź ostatnią zakończoną rundę (COMPLETED)
+        // Następna runda to ta po ostatniej COMPLETED
+        int lastCompletedRound = tournament.getRounds().stream()
+                .filter(round -> round.getStatus() == RoundStatus.COMPLETED)
+                .mapToInt(TournamentRound::getRoundNumber)
                 .max()
-                .orElse(0) + 1;
+                .orElse(0);
+
+        return lastCompletedRound + 1;
     }
 
 
@@ -87,6 +98,16 @@ public class TournamentRoundService {
         round.setStatus(RoundStatus.COMPLETED);
         round.setCompletionTime(LocalDateTime.now());
 
+        // Zmiana fazy turnieju
+        if (roundNumber >= tournament.getNumberOfRounds()) {
+            // To była ostatnia runda - turniej zakończony
+            tournament.setPhase(TournamentPhase.TOURNAMENT_COMPLETE);
+            tournament.setStatus(com.tourney.dto.tournament.TournamentStatus.COMPLETED);
+        } else {
+            // Są jeszcze kolejne rundy - czeka na dobranie par
+            tournament.setPhase(TournamentPhase.AWAITING_PAIRINGS);
+        }
+
         // Zapisz zmiany
         tournamentRepository.save(tournament);
 
@@ -124,6 +145,69 @@ public class TournamentRoundService {
                 .isCompleted(pendingMatches.isEmpty() && round.getStatus() == RoundStatus.COMPLETED)
                 .statusMessage(createStatusMessage(round, pendingMatches))
                 .build();
+    }
+
+    /**
+     * Automatycznie kończy rundę jeśli wszystkie mecze zostały zakończone
+     */
+    public void autoCompleteRoundIfReady(Long tournamentId, int roundNumber) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElse(null);
+        
+        if (tournament == null) {
+            log.warn("Nie znaleziono turnieju o ID: {}", tournamentId);
+            return;
+        }
+
+        TournamentRound round = tournament.getRounds().stream()
+                .filter(r -> r.getRoundNumber() == roundNumber)
+                .findFirst()
+                .orElse(null);
+                
+        if (round == null) {
+            log.warn("Nie znaleziono rundy {} w turnieju {}", roundNumber, tournamentId);
+            return;
+        }
+        
+        // Sprawdź czy runda jest już zakończona
+        if (round.getStatus() == RoundStatus.COMPLETED) {
+            log.debug("Runda {} w turnieju {} jest już zakończona", roundNumber, tournamentId);
+            return;
+        }
+
+        // Sprawdź czy wszystkie mecze są zakończone
+        List<Match> matches = round.getMatches();
+        long completedCount = matches.stream()
+                .filter(match -> match.getStatus() == MatchStatus.COMPLETED)
+                .count();
+        
+        if (completedCount == matches.size() && !matches.isEmpty()) {
+            // Wszystkie mecze zakończone - automatycznie zakończ rundę
+            log.info("Wszystkie mecze zakończone w rundzie {} turnieju {}. Automatyczne kończenie rundy.", 
+                    roundNumber, tournamentId);
+            
+            round.setStatus(RoundStatus.COMPLETED);
+            round.setCompletionTime(LocalDateTime.now());
+            
+            // Zmiana fazy turnieju
+            if (roundNumber >= tournament.getNumberOfRounds()) {
+                // To była ostatnia runda - turniej zakończony
+                tournament.setPhase(TournamentPhase.TOURNAMENT_COMPLETE);
+                tournament.setStatus(com.tourney.dto.tournament.TournamentStatus.COMPLETED);
+                log.info("Wszystkie rundy zakończone - turniej {} zakończony", tournamentId);
+            } else {
+                // Są jeszcze kolejne rundy - czeka na dobranie par
+                tournament.setPhase(TournamentPhase.AWAITING_PAIRINGS);
+                log.info("Runda zakończona, czeka na dobranie par do rundy {}", roundNumber + 1);
+            }
+            
+            tournamentRepository.save(tournament);
+            
+            log.info("Runda {} w turnieju {} została automatycznie zakończona", roundNumber, tournamentId);
+        } else {
+            log.debug("Runda {} w turnieju {}: {}/{} meczów zakończonych", 
+                    roundNumber, tournamentId, completedCount, matches.size());
+        }
     }
 
     private String createStatusMessage(TournamentRound round, List<Match> pendingMatches) {
@@ -206,6 +290,9 @@ public class TournamentRoundService {
             tournament.setCurrentRound(roundNumber);
             tournament.setCurrentRoundStartTime(now);
             tournament.setCurrentRoundEndTime(endTime);
+            
+            // Zmiana fazy turnieju - runda aktywna
+            tournament.setPhase(TournamentPhase.ROUND_ACTIVE);
         } else {
             // Mecze startują osobno - tylko przygotuj rundę
             round.setStatus(RoundStatus.NOT_STARTED);
@@ -411,15 +498,43 @@ public class TournamentRoundService {
             }
         }
         
+        // Oblicz Tournament Points dla zakończonych meczów turniejowych
+        Integer player1TP = null;
+        Integer player2TP = null;
+        
+        if (match instanceof TournamentMatch && match.getStatus() == MatchStatus.COMPLETED) {
+            try {
+                TournamentMatch tournamentMatch = (TournamentMatch) match;
+                Tournament tournament = tournamentMatch.getTournamentRound().getTournament();
+                
+                // Oblicz Tournament Points na podstawie Score Points
+                player1TP = tournamentPointsCalculationService.calculateTournamentPoints(
+                    player1Total,
+                    player2Total,
+                    tournament.getTournamentScoring()
+                );
+                
+                player2TP = tournamentPointsCalculationService.calculateTournamentPoints(
+                    player2Total,
+                    player1Total,
+                    tournament.getTournamentScoring()
+                );
+            } catch (Exception e) {
+                log.warn("Failed to calculate tournament points for match {}: {}", match.getId(), e.getMessage());
+                player1TP = null;
+                player2TP = null;
+            }
+        }
+        
         return MatchPairDTO.builder()
                 .matchId(match.getId())
                 .tableNumber(match.getTableNumber() != null ? match.getTableNumber() : 0)
                 .player1Id(match.getPlayer1().getId())
                 .player1Name(match.getPlayer1().getName())
-                .player1TournamentPoints(null) // TODO: obliczyć
+                .player1TournamentPoints(player1TP)
                 .player2Id(match.getPlayer2() != null ? match.getPlayer2().getId() : null)
                 .player2Name(match.getPlayer2() != null ? match.getPlayer2().getName() : "BYE")
-                .player2TournamentPoints(null) // TODO: obliczyć
+                .player2TournamentPoints(player2TP)
                 .status(match.getStatus().name())
                 .startTime(match.getStartTime())
                 .gameEndTime(match.getGameEndTime())

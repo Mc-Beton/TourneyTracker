@@ -99,8 +99,16 @@ public class TournamentManagementService {
         validateTournamentUpdate(tournament, dto);
 
         tournament.setName(dto.getName());
+        tournament.setDescription(dto.getDescription());
         tournament.setStartDate(dto.getStartDate());
+        tournament.setEndDate(dto.getEndDate());
         tournament.setRoundDurationMinutes(dto.getRoundDurationMinutes());
+        tournament.setScoreSubmissionExtraMinutes(dto.getScoreSubmissionExtraMinutes());
+        tournament.setMaxParticipants(dto.getMaxParticipants());
+        tournament.setRegistrationDeadline(dto.getRegistrationDeadline());
+        tournament.setLocation(dto.getLocation());
+        tournament.setVenue(dto.getVenue());
+        tournament.setArmyPointsLimit(dto.getArmyPointsLimit());
 
         return tournamentRepository.save(tournament);
     }
@@ -305,6 +313,7 @@ public class TournamentManagementService {
                 .registrationDeadline(tournament.getRegistrationDeadline())
                 .location(tournament.getLocation())
                 .venue(tournament.getVenue())
+                .armyPointsLimit(tournament.getArmyPointsLimit())
                 // Pola małych punktów (Score Points)
                 .scoringSystem(tournament.getTournamentScoring() != null ? tournament.getTournamentScoring().getScoringSystem() : null)
                 .enabledScoreTypes(tournament.getTournamentScoring() != null ? tournament.getTournamentScoring().getEnabledScoreTypes() : null)

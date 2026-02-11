@@ -9,9 +9,9 @@ import java.time.LocalDateTime;
 @Builder
 public class MatchInfo {
     private Long matchId;
-    private int tableNumber;
+    private Integer tableNumber;
     private String player1Name;
     private String player2Name;
     private LocalDateTime startTime;
-    private int durationMinutes;
+    private Integer durationMinutes;
 }

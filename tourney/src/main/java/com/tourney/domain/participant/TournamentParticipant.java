@@ -72,11 +72,61 @@ public class TournamentParticipant {
     @Column(name = "registration_date")
     private LocalDateTime registrationDate;
 
+    // Tournament stats - updated after each match
+    @Column(name = "tournament_points", nullable = false, columnDefinition = "INTEGER DEFAULT 0")
+    private int tournamentPoints = 0;
+
+    @Column(name = "score_points", nullable = false, columnDefinition = "BIGINT DEFAULT 0")
+    private long scorePoints = 0L;
+
+    @Column(name = "matches_played", nullable = false, columnDefinition = "INTEGER DEFAULT 0")
+    private int matchesPlayed = 0;
+
+    @Column(name = "wins", nullable = false, columnDefinition = "INTEGER DEFAULT 0")
+    private int wins = 0;
+
+    @Column(name = "draws", nullable = false, columnDefinition = "INTEGER DEFAULT 0")
+    private int draws = 0;
+
+    @Column(name = "losses", nullable = false, columnDefinition = "INTEGER DEFAULT 0")
+    private int losses = 0;
+
     @PrePersist
     protected void onCreate() {
         if (registrationDate == null) {
             registrationDate = LocalDateTime.now();
         }
+    }
+
+    /**
+     * Dodaje punkty po zakończonym meczu
+     */
+    public void addMatchResult(int tournamentPoints, long scorePoints, MatchResult result) {
+        this.tournamentPoints += tournamentPoints;
+        this.scorePoints += scorePoints;
+        this.matchesPlayed++;
+        
+        switch (result) {
+            case WIN -> this.wins++;
+            case DRAW -> this.draws++;
+            case LOSS -> this.losses++;
+        }
+    }
+
+    /**
+     * Resetuje statystyki turnieju
+     */
+    public void resetStats() {
+        this.tournamentPoints = 0;
+        this.scorePoints = 0L;
+        this.matchesPlayed = 0;
+        this.wins = 0;
+        this.draws = 0;
+        this.losses = 0;
+    }
+
+    public enum MatchResult {
+        WIN, DRAW, LOSS
     }
 }
 

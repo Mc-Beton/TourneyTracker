@@ -3,6 +3,7 @@ package com.tourney.service.player;
 import com.tourney.domain.games.Match;
 import com.tourney.domain.games.MatchRound;
 import com.tourney.domain.games.MatchStatus;
+import com.tourney.domain.games.TournamentMatch;
 import com.tourney.domain.scores.Score;
 import com.tourney.domain.scores.ScoreType;
 import com.tourney.domain.tournament.Tournament;
@@ -19,8 +20,10 @@ import com.tourney.repository.games.MatchRepository;
 import com.tourney.repository.scores.ScoreRepository;
 import com.tourney.repository.tournament.TournamentRepository;
 import com.tourney.repository.user.UserRepository;
+import com.tourney.service.tournament.TournamentRoundService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,12 +41,15 @@ import static com.tourney.exception.domain.MatchErrorCode.*;
 @Service
 @Transactional
 @RequiredArgsConstructor
+@Slf4j
 public class PlayerMatchService {
     private final TournamentRepository tournamentRepository;
     private final MatchRepository matchRepository;
     private final UserRepository userRepository;
     private final ScoreRepository scoreRepository;
     private final com.tourney.service.match.SingleMatchService singleMatchService;
+    private final TournamentRoundService tournamentRoundService;
+    private final com.tourney.service.tournament.ParticipantStatsUpdateService participantStatsUpdateService;
 
     public Match getCurrentMatchForPlayer(Tournament tournament, Long playerId) {
         return matchRepository.findByTournamentAndPlayer(
@@ -232,6 +238,26 @@ public class PlayerMatchService {
         if (match.areBothPlayersConfirmed()) {
             match.setStatus(MatchStatus.COMPLETED);
             match.setGameEndTime(LocalDateTime.now());
+            
+            // Automatyczne sprawdzenie i zakończenie rundy turnieju jeśli wszystkie mecze są zakończone
+            if (match instanceof TournamentMatch tournamentMatch) {
+                try {
+                    Long tournamentId = tournamentMatch.getTournamentRound().getTournament().getId();
+                    int roundNumber = tournamentMatch.getTournamentRound().getRoundNumber();
+                    
+                    log.info("Mecz {} zakończony. Aktualizuję statystyki i sprawdzam rundę {} turnieju {}", 
+                            matchId, roundNumber, tournamentId);
+                    
+                    // Aktualizuj statystyki uczestników
+                    participantStatsUpdateService.updateStatsAfterMatch(match);
+                    
+                    // Sprawdź auto-zakończenie rundy
+                    tournamentRoundService.autoCompleteRoundIfReady(tournamentId, roundNumber);
+                } catch (Exception e) {
+                    log.error("Błąd podczas aktualizacji statystyk lub kończenia rundy: {}", e.getMessage(), e);
+                    // Nie przerywamy operacji - mecz został zakończony pomyślnie
+                }
+            }
         }
 
         match = matchRepository.save(match);

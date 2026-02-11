@@ -2,6 +2,7 @@ package com.tourney.dto.tournament;
 
 import com.tourney.domain.scores.ScoreType;
 import com.tourney.domain.scores.ScoringSystem;
+import com.tourney.domain.tournament.TournamentPhase;
 import lombok.Builder;
 import lombok.Data;
 
@@ -31,6 +32,9 @@ public class TournamentResponseDTO {
     private Integer confirmedParticipantsCount;
 
     private TournamentStatus status;
+    
+    // Wewnętrzny szczegółowy status postępu turnieju
+    private TournamentPhase phase;
 
     // Dodane pola dotyczące punktacji
     private ScoringSystem scoringSystem;

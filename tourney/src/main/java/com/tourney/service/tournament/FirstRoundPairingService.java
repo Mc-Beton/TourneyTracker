@@ -5,6 +5,7 @@ import com.tourney.domain.games.MatchRound;
 import com.tourney.domain.games.TournamentMatch;
 import com.tourney.domain.participant.TournamentParticipant;
 import com.tourney.domain.tournament.Tournament;
+import com.tourney.domain.tournament.TournamentPhase;
 import com.tourney.domain.tournament.TournamentRound;
 import com.common.domain.User;
 import com.tourney.repository.games.MatchRepository;
@@ -42,6 +43,10 @@ public class FirstRoundPairingService {
         
         TournamentRound firstRound = findFirstRound(tournament);
         List<Match> matches = createPairings(confirmedPlayers, firstRound);
+        
+        // Zmiana fazy turnieju - pary dobrane, czeka na start
+        tournament.setPhase(TournamentPhase.PAIRINGS_READY);
+        tournamentRepository.save(tournament);
         
         return matchRepository.saveAll(matches);
     }
@@ -94,7 +99,7 @@ public class FirstRoundPairingService {
         match.setPlayer1(player1);
         match.setPlayer2(player2);
         match.setTournamentRound(round);
-        match.setStartTime(LocalDateTime.now());
+        // startTime będzie ustawiony dopiero przy rozpoczęciu rundy
         match.setTableNumber(tableNumber);
         match.setGameDurationMinutes(round.getTournament().getRoundDurationMinutes());
         
@@ -114,7 +119,7 @@ public class FirstRoundPairingService {
         TournamentMatch match = new TournamentMatch();
         match.setPlayer1(player);
         match.setTournamentRound(round);
-        match.setStartTime(LocalDateTime.now());
+        // startTime będzie ustawiony dopiero przy rozpoczęciu rundy
         match.setTableNumber(tableNumber);
         match.setGameDurationMinutes(round.getTournament().getRoundDurationMinutes());
         
