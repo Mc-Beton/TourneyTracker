@@ -2,6 +2,9 @@ package com.tourney.service.tournament;
 
 import com.tourney.domain.systems.Deployment;
 import com.tourney.domain.systems.PrimaryMission;
+import com.tourney.domain.tournament.PairingAlgorithmType;
+import com.tourney.domain.tournament.PlayerLevelPairingStrategy;
+import com.tourney.domain.tournament.TableAssignmentStrategy;
 import com.tourney.domain.tournament.Tournament;
 import com.tourney.domain.tournament.TournamentRoundDefinition;
 import com.tourney.dto.tournament.TournamentRoundDefinitionDTO;
@@ -101,6 +104,15 @@ public class TournamentRoundDefinitionService {
         if (dto.getSplitSmallPoints() != null) {
             definition.setSplitSmallPoints(dto.getSplitSmallPoints());
         }
+        if (dto.getPairingAlgorithm() != null) {
+            definition.setPairingAlgorithm(PairingAlgorithmType.valueOf(dto.getPairingAlgorithm()));
+        }
+        if (dto.getPlayerLevelPairingStrategy() != null) {
+            definition.setPlayerLevelPairingStrategy(PlayerLevelPairingStrategy.valueOf(dto.getPlayerLevelPairingStrategy()));
+        }
+        if (dto.getTableAssignmentStrategy() != null) {
+            definition.setTableAssignmentStrategy(TableAssignmentStrategy.valueOf(dto.getTableAssignmentStrategy()));
+        }
         
         TournamentRoundDefinition saved = roundDefinitionRepository.save(definition);
         return toDTO(saved);
@@ -121,6 +133,9 @@ public class TournamentRoundDefinitionService {
                 .byeSmallPoints(entity.getByeSmallPoints())
                 .splitLargePoints(entity.getSplitLargePoints())
                 .splitSmallPoints(entity.getSplitSmallPoints())
+                .pairingAlgorithm(entity.getPairingAlgorithm().name())
+                .playerLevelPairingStrategy(entity.getPlayerLevelPairingStrategy() != null ? entity.getPlayerLevelPairingStrategy().name() : null)
+                .tableAssignmentStrategy(entity.getTableAssignmentStrategy() != null ? entity.getTableAssignmentStrategy().name() : null)
                 .build();
     }
 }

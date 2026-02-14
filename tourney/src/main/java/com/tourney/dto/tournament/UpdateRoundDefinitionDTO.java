@@ -13,4 +13,7 @@ public class UpdateRoundDefinitionDTO {
     private Integer byeSmallPoints;
     private Integer splitLargePoints;
     private Integer splitSmallPoints;
+    private String pairingAlgorithm;
+    private String playerLevelPairingStrategy;
+    private String tableAssignmentStrategy;
 }

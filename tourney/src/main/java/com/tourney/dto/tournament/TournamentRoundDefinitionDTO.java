@@ -19,4 +19,7 @@ public class TournamentRoundDefinitionDTO {
     private Integer byeSmallPoints;
     private Integer splitLargePoints;
     private Integer splitSmallPoints;
+    private String pairingAlgorithm;
+    private String playerLevelPairingStrategy;
+    private String tableAssignmentStrategy;
 }

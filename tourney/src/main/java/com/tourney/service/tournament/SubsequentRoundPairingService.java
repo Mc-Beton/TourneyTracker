@@ -5,10 +5,7 @@ import com.tourney.domain.participant.TournamentParticipant;
 import com.tourney.domain.player.PlayerStats;
 import com.tourney.domain.scores.Score;
 import com.tourney.domain.scores.ScoreType;
-import com.tourney.domain.tournament.Tournament;
-import com.tourney.domain.tournament.TournamentPhase;
-import com.tourney.domain.tournament.TournamentRound;
-import com.tourney.domain.tournament.TournamentRoundDefinition;
+import com.tourney.domain.tournament.*;
 import com.common.domain.User;
 import com.tourney.repository.TournamentRoundDefinitionRepository;
 import com.tourney.repository.games.MatchRepository;
@@ -35,10 +32,27 @@ public class SubsequentRoundPairingService {
         Tournament tournament = getTournament(tournamentId);
         TournamentRound currentRound = findTournamentRound(tournament, roundNumber);
         
+        // Pobierz definicję rundy
+        TournamentRoundDefinition roundDefinition = roundDefinitionRepository
+                .findByTournamentIdAndRoundNumber(tournamentId, roundNumber)
+                .orElseThrow(() -> new RuntimeException("Nie znaleziono definicji rundy " + roundNumber));
+        
         List<PlayerStats> rankedPlayers = getRankedPlayers(tournament);
         Set<String> previousPairings = getPreviousPairings(tournament);
         
-        List<Match> newMatches = createMatches(rankedPlayers, previousPairings, currentRound);
+        // Dobór algorytmu parowania na podstawie definicji rundy
+        PairingAlgorithmType algorithmType = roundDefinition.getPairingAlgorithm();
+        TableAssignmentStrategy tableStrategy = roundDefinition.getTableAssignmentStrategy();
+        
+        List<Match> newMatches;
+        
+        if (algorithmType == PairingAlgorithmType.CUSTOM) {
+            // Custom algorytm - stosujemy wybrane strategie
+            newMatches = createMatches(rankedPlayers, previousPairings, currentRound, tableStrategy);
+        } else {
+            // STANDARD - domyślna strategia (BEST_FIRST)
+            newMatches = createMatches(rankedPlayers, previousPairings, currentRound, TableAssignmentStrategy.BEST_FIRST);
+        }
         
         // Zmiana fazy turnieju - pary dobrane, czeka na start
         tournament.setPhase(TournamentPhase.PAIRINGS_READY);
@@ -129,7 +143,12 @@ public class SubsequentRoundPairingService {
                 .orElseThrow(() -> new RuntimeException("Nie znaleziono rundy " + roundNumber));
     }
 
-    private List<Match> createMatches(List<PlayerStats> rankedPlayers, Set<String> previousPairings, TournamentRound currentRound) {
+    private List<Match> createMatches(
+            List<PlayerStats> rankedPlayers, 
+            Set<String> previousPairings, 
+            TournamentRound currentRound,
+            TableAssignmentStrategy tableStrategy
+    ) {
         List<Match> matches = new ArrayList<>();
         Set<Long> pairedPlayers = new HashSet<>();
         int tableNumber = 1;
@@ -150,7 +169,29 @@ public class SubsequentRoundPairingService {
         // Obsługa nieparzystej liczby graczy
         handleOddNumberOfPlayers(rankedPlayers, pairedPlayers, matches, currentRound, tableNumber);
 
+        // Zastosowanie strategii przypisywania stołów
+        if (tableStrategy == TableAssignmentStrategy.RANDOM) {
+            assignRandomTableNumbers(matches);
+        }
+        // Dla BEST_FIRST nic nie robimy - numery stołów są już przypisane sekwencyjnie
+
         return matches;
+    }
+    
+    /**
+     * Losuje numery stołów dla wszystkich meczów
+     */
+    private void assignRandomTableNumbers(List<Match> matches) {
+        int numberOfTables = matches.size();
+        List<Integer> tableNumbers = new ArrayList<>();
+        for (int i = 1; i <= numberOfTables; i++) {
+            tableNumbers.add(i);
+        }
+        Collections.shuffle(tableNumbers);
+        
+        for (int i = 0; i < matches.size(); i++) {
+            matches.get(i).setTableNumber(tableNumbers.get(i));
+        }
     }
 
     private Optional<Match> tryCreateMatch(

@@ -51,4 +51,19 @@ public class TournamentRoundDefinition {
     
     @Column(nullable = false)
     private Integer splitSmallPoints = 0;
+    
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "pairing_algorithm")
+    private PairingAlgorithmType pairingAlgorithm = PairingAlgorithmType.STANDARD;
+    
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "player_level_pairing_strategy")
+    private PlayerLevelPairingStrategy playerLevelPairingStrategy = PlayerLevelPairingStrategy.NONE;
+    
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "table_assignment_strategy")
+    private TableAssignmentStrategy tableAssignmentStrategy = TableAssignmentStrategy.BEST_FIRST;
 }

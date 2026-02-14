@@ -81,6 +81,7 @@ public class MatchScoringService {
                 .player2Name(resolvePlayer2Name(match))
                 .currentRound(currentRound)
                 .totalRounds(totalRounds)
+                .startTime(match.getStartTime())
                 .gameDurationMinutes(match.getGameDurationMinutes())
                 .resultSubmissionDeadline(match.getResultSubmissionDeadline())
                 .endTime(match.getGameEndTime())

@@ -4,12 +4,16 @@ import com.tourney.domain.games.Match;
 import com.tourney.domain.games.MatchRound;
 import com.tourney.domain.games.TournamentMatch;
 import com.tourney.domain.participant.TournamentParticipant;
+import com.tourney.domain.tournament.PairingAlgorithmType;
+import com.tourney.domain.tournament.PlayerLevelPairingStrategy;
 import com.tourney.domain.tournament.Tournament;
 import com.tourney.domain.tournament.TournamentPhase;
 import com.tourney.domain.tournament.TournamentRound;
+import com.tourney.domain.tournament.TournamentRoundDefinition;
 import com.common.domain.User;
 import com.tourney.repository.games.MatchRepository;
 import com.tourney.repository.tournament.TournamentRepository;
+import com.tourney.repository.TournamentRoundDefinitionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +22,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +30,7 @@ import java.util.List;
 public class FirstRoundPairingService {
     private final TournamentRepository tournamentRepository;
     private final MatchRepository matchRepository;
+    private final TournamentRoundDefinitionRepository roundDefinitionRepository;
 
     public List<Match> createFirstRoundPairings(Long tournamentId) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
@@ -39,7 +45,38 @@ public class FirstRoundPairingService {
                         .toList()
         );
 
-        Collections.shuffle(confirmedPlayers);
+        // Pobierz definicję pierwszej rundy
+        TournamentRoundDefinition roundDefinition = roundDefinitionRepository
+                .findByTournamentIdOrderByRoundNumberAsc(tournamentId)
+                .stream()
+                .filter(def -> def.getRoundNumber() == 1)
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Nie znaleziono definicji pierwszej rundy"));
+
+        // Dobór algorytmu parowania na podstawie definicji rundy
+        PairingAlgorithmType algorithmType = roundDefinition.getPairingAlgorithm();
+        
+        if (algorithmType == PairingAlgorithmType.CUSTOM) {
+            // Custom algorytm - stosujemy wybrane strategie
+            PlayerLevelPairingStrategy strategy = roundDefinition.getPlayerLevelPairingStrategy();
+            
+            if (strategy == PlayerLevelPairingStrategy.NONE) {
+                // Brak preferencji - zwykłe losowanie
+                Collections.shuffle(confirmedPlayers);
+            } else if (strategy == PlayerLevelPairingStrategy.BEGINNERS_WITH_VETERANS) {
+                // Parowanie początkujących z weteranami
+                applyBeginnersWithVeteransStrategy(confirmedPlayers);
+            } else if (strategy == PlayerLevelPairingStrategy.BEGINNERS_WITH_BEGINNERS) {
+                // Parowanie podobnych poziomów
+                applyBeginnersWithBeginnersStrategy(confirmedPlayers);
+            } else {
+                // Fallback - jeśli strategia nie jest rozpoznana
+                Collections.shuffle(confirmedPlayers);
+            }
+        } else {
+            // STANDARD - losowe przetasowanie
+            Collections.shuffle(confirmedPlayers);
+        }
         
         TournamentRound firstRound = findFirstRound(tournament);
         List<Match> matches = createPairings(confirmedPlayers, firstRound);
@@ -133,5 +170,70 @@ public class FirstRoundPairingService {
         }
         
         return match;
+    }
+
+    /**
+     * Strategia parowania początkujących z weteranami
+     * Rozdziela graczy na dwie grupy, tasuje je i łączy w pary (beginner, veteran)
+     */
+    private void applyBeginnersWithVeteransStrategy(List<User> players) {
+        // Rozdzielenie na beginners i veterans
+        List<User> beginners = players.stream()
+                .filter(user -> Boolean.TRUE.equals(user.getBeginner()))
+                .collect(Collectors.toList());
+        
+        List<User> veterans = players.stream()
+                .filter(user -> !Boolean.TRUE.equals(user.getBeginner()))
+                .collect(Collectors.toList());
+        
+        // Losowe tasowanie obu grup
+        Collections.shuffle(beginners);
+        Collections.shuffle(veterans);
+        
+        // Czyścimy oryginalną listę i budujemy ją od nowa
+        players.clear();
+        
+        // Parowanie beginners z veterans
+        int minSize = Math.min(beginners.size(), veterans.size());
+        for (int i = 0; i < minSize; i++) {
+            players.add(beginners.get(i));
+            players.add(veterans.get(i));
+        }
+        
+        // Dodanie pozostałych graczy (ci, którzy nie mieli pary z innego poziomu)
+        if (beginners.size() > minSize) {
+            players.addAll(beginners.subList(minSize, beginners.size()));
+        }
+        if (veterans.size() > minSize) {
+            players.addAll(veterans.subList(minSize, veterans.size()));
+        }
+    }
+
+    /**
+     * Strategia parowania graczy tego samego poziomu
+     * Grupuje graczy według poziomu i tasuje w ramach grup
+     */
+    private void applyBeginnersWithBeginnersStrategy(List<User> players) {
+        // Rozdzielenie na beginners i veterans
+        List<User> beginners = players.stream()
+                .filter(user -> Boolean.TRUE.equals(user.getBeginner()))
+                .collect(Collectors.toList());
+        
+        List<User> veterans = players.stream()
+                .filter(user -> !Boolean.TRUE.equals(user.getBeginner()))
+                .collect(Collectors.toList());
+        
+        // Losowe tasowanie w ramach każdej grupy
+        Collections.shuffle(beginners);
+        Collections.shuffle(veterans);
+        
+        // Czyścimy oryginalną listę i budujemy ją od nowa
+        players.clear();
+        
+        // Dodaj najpierw beginners, potem veterans
+        // Parowanie sekwencyjne w createPairings() spowoduje,
+        // że beginners będą parowani z beginners, veterans z veterans
+        players.addAll(beginners);
+        players.addAll(veterans);
     }
 }

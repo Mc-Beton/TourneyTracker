@@ -29,6 +29,14 @@ public class User {
     @Column(nullable = false)
     private String password;
 
+    private Boolean beginner;
+
+    private String team;
+
+    private String city;
+
+    private String discordNick;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "user_roles",
