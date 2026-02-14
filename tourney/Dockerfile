@@ -1,10 +1,6 @@
 FROM maven:3.9-eclipse-temurin-17-alpine AS builder
 WORKDIR /build
-COPY common/pom.xml ./common/pom.xml
-COPY common/src ./common/src
-COPY tourney/pom.xml ./tourney/pom.xml
-COPY tourney/src ./tourney/src
-COPY pom.xml .
+COPY . .
 RUN mvn clean package -pl tourney -am -DskipTests
 
 FROM eclipse-temurin:17-jre-alpine
