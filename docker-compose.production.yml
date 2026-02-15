@@ -26,7 +26,7 @@ services:
       dockerfile: ./user-service/Dockerfile
     container_name: user-service
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tourney_db
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tourney_db?currentSchema=tourney_schema
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       JWT_SECRET_BASE64: ${JWT_SECRET_BASE64}
