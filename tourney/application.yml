@@ -18,10 +18,7 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         default_schema: tourney_schema
   flyway:
-    default-schema: tourney_schema
-    create-schemas: true
-    baseline-on-migrate: true
-    baseline-version: 0
+    enabled: false
 
 springdoc:
   api-docs:
