@@ -3,14 +3,17 @@ server:
 
 spring:
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres-db:5432/turn}
-    username: ${SPRING_DATASOURCE_USERNAME:turn}
-    password: ${SPRING_DATASOURCE_PASSWORD:turn}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/tourney_db}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
       ddl-auto: update
     database-platform: org.hibernate.dialect.PostgreSQLDialect
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
 
 security:
   jwt:
