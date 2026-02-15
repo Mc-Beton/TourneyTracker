@@ -106,5 +106,3 @@ BEGIN
     ('Emperor''s Children', chaos_id);
     
 END $$;
-
-COMMIT;
