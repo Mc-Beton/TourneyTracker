@@ -59,7 +59,7 @@ services:
       context: ../TourneyTracker-Front/tt-front
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: http://46.225.172.142
+        NEXT_PUBLIC_API_URL: https://warbracket.pl
     container_name: tourney-frontend
     environment:
       NODE_ENV: production
