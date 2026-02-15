@@ -18,8 +18,9 @@ import java.util.List;
 /**
  * Inicjalizator danych dla Warhammer 40,000
  * Tworzy GameSystem, frakcje i armie
+ * WYŁĄCZONY - dane są ładowane z init_game_data.sql
  */
-@Component
+//@Component
 @RequiredArgsConstructor
 @Slf4j
 public class Warhammer40kDataInitializer implements ApplicationRunner {
