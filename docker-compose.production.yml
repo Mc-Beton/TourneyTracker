@@ -58,9 +58,10 @@ services:
     build:
       context: ../TourneyTracker-Front/tt-front
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://46.225.172.142
     container_name: tourney-frontend
     environment:
-      NEXT_PUBLIC_API_URL: http://46.225.172.142
       NODE_ENV: production
     depends_on:
       - tourney
