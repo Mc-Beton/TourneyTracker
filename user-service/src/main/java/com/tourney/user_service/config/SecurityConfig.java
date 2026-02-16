@@ -28,12 +28,11 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain userSecurityFilterChain(HttpSecurity http) throws Exception {
         http
-            // NIE używamy securityMatcher - niech obsługuje wszystkie requesty
             .cors(Customizer.withDefaults())
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                // requestMatchers widzi PEŁNĄ ścieżkę Z context-path /api/users
-                .requestMatchers("/api/users/auth/**").permitAll()
+                // BEZ context-path! Proste ścieżki
+                .requestMatchers("/auth/**").permitAll()
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session
