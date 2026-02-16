@@ -28,11 +28,11 @@ public class SecurityConfig {
     @Order(2)
     public SecurityFilterChain userSecurityFilterChain(HttpSecurity http) throws Exception {
         http
-            .securityMatcher("/api/users/**", "/auth/**")
+            .securityMatcher("/api/users/**")
             .cors(Customizer.withDefaults())
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/auth/**").permitAll()
+                .requestMatchers("/api/users/auth/**").permitAll()
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session
