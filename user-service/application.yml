@@ -2,6 +2,10 @@ server:
   port: 8081
   address: 0.0.0.0
 
+app:
+  service:
+    name: user-service
+
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/tourney?currentSchema=tourney_schema

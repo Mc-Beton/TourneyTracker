@@ -2,6 +2,7 @@ package com.common.config;
 
 import com.common.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
@@ -14,6 +15,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @RequiredArgsConstructor
+// Włącz tę konfigurację TYLKO w tourney service, NIE w user-service
+@ConditionalOnProperty(name = "app.service.name", havingValue = "tourney")
 public class CommonSecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;

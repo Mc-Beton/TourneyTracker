@@ -3,6 +3,10 @@ server:
   servlet:
     context-path: /
 
+app:
+  service:
+    name: tourney
+
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/tourney?currentSchema=tourney_schema
