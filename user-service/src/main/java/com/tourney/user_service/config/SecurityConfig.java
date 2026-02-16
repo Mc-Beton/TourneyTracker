@@ -37,6 +37,8 @@ public class SecurityConfig {
     public SecurityFilterChain userSecurityFilterChain(HttpSecurity http) throws Exception {
         http
             // Uwaga: context-path /api/users jest automatycznie usuwany przez Spring
+            // Dlatego matcher musi być bez /api/users/
+            .securityMatcher("/**")
             .cors(Customizer.withDefaults())
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth

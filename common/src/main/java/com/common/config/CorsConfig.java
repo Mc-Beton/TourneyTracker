@@ -21,6 +21,8 @@ public class CorsConfig {
         config.addAllowedOrigin("http://46.225.172.142");
         config.addAllowedOrigin("https://warbracket.pl");
         config.addAllowedOrigin("https://www.warbracket.pl");
+        config.addAllowedOrigin("http://warbracket.pl");
+        config.addAllowedOrigin("http://www.warbracket.pl");
         config.addAllowedMethod("*");
         config.addAllowedHeader("*");
         config.setAllowCredentials(true);
