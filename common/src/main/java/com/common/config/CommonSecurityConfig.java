@@ -22,6 +22,9 @@ public class CommonSecurityConfig {
     @Order(Ordered.LOWEST_PRECEDENCE)
     public SecurityFilterChain commonSecurityFilterChain(HttpSecurity http) throws Exception { // UNIKALNA NAZWA
         http
+            // Obsługuje TYLKO requesty do /api/** (tourney service)
+            // user-service będzie miał własny SecurityFilterChain
+            .securityMatcher("/api/**")
             .cors(Customizer.withDefaults())
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
