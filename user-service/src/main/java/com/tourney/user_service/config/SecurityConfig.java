@@ -26,14 +26,6 @@ public class SecurityConfig {
     }
     
     @Bean
-    public WebSecurityCustomizer webSecurityCustomizer() {
-        // Całkowicie omija Spring Security dla auth endpoints - żadne filtry się nie wykonają
-        // UWAGA: WebSecurityCustomizer działa PRZED usunięciem context-path!
-        // Dlatego musimy użyć PEŁNEJ ścieżki z /api/users/
-        return (web) -> web.ignoring()
-            .requestMatchers("/api/users/auth/**");
-    }
-    @Bean
     @Order(2)
     public SecurityFilterChain userSecurityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -43,7 +35,8 @@ public class SecurityConfig {
             .cors(Customizer.withDefaults())
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                // /auth/** jest już ignorowane przez webSecurityCustomizer
+                // Użyj permitAll() zamiast web.ignoring() - pozwala kontrolerom działać
+                .requestMatchers("/auth/**").permitAll()
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session
