@@ -26,6 +26,7 @@ public class SecurityConfig {
     }
     
     @Bean
+    @Order(1) // Pierwszeństwo przed OAuth2 auto-config
     public SecurityFilterChain userSecurityFilterChain(HttpSecurity http) throws Exception {
         http
             .cors(Customizer.withDefaults())
