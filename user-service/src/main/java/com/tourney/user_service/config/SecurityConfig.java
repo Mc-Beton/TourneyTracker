@@ -28,18 +28,19 @@ public class SecurityConfig {
     @Bean
     public WebSecurityCustomizer webSecurityCustomizer() {
         // Całkowicie omija Spring Security dla auth endpoints - żadne filtry się nie wykonają
+        // Uwaga: context-path /api/users jest automatycznie usuwany przez Spring
         return (web) -> web.ignoring()
-            .requestMatchers("/api/users/auth/**");
+            .requestMatchers("/auth/**");
     }
     @Bean
     @Order(2)
     public SecurityFilterChain userSecurityFilterChain(HttpSecurity http) throws Exception {
         http
-            .securityMatcher("/api/users/**")
+            // Uwaga: context-path /api/users jest automatycznie usuwany przez Spring
             .cors(Customizer.withDefaults())
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                // /api/users/auth/** jest już ignorowane przez webSecurityCustomizer
+                // /auth/** jest już ignorowane przez webSecurityCustomizer
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session
