@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -25,6 +26,12 @@ public class SecurityConfig {
     }
     
     @Bean
+    public WebSecurityCustomizer webSecurityCustomizer() {
+        // Całkowicie omija Spring Security dla auth endpoints - żadne filtry się nie wykonają
+        return (web) -> web.ignoring()
+            .requestMatchers("/api/users/auth/**");
+    }
+    @Bean
     @Order(2)
     public SecurityFilterChain userSecurityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -32,7 +39,7 @@ public class SecurityConfig {
             .cors(Customizer.withDefaults())
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/users/auth/**").permitAll()
+                // /api/users/auth/** jest już ignorowane przez webSecurityCustomizer
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session
