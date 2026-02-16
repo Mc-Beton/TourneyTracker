@@ -29,14 +29,14 @@ public class SecurityConfig {
     @Order(2)
     public SecurityFilterChain userSecurityFilterChain(HttpSecurity http) throws Exception {
         http
-            // Uwaga: context-path /api/users jest automatycznie usuwany przez Spring
-            // Dlatego matcher musi być bez /api/users/
+            // Uwaga: securityMatcher działa PO usunięciu context-path, więc bez /api/users
             .securityMatcher("/**")
             .cors(Customizer.withDefaults())
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                // Użyj permitAll() zamiast web.ignoring() - pozwala kontrolerom działać
-                .requestMatchers("/auth/**").permitAll()
+                // WAŻNE: requestMatchers w authorizeHttpRequests widzi PEŁNĄ ścieżkę Z context-path!
+                // Dlatego musimy użyć /api/users/auth/**
+                .requestMatchers("/api/users/auth/**").permitAll()
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session
