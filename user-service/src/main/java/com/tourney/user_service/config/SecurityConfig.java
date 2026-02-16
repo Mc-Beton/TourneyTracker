@@ -28,9 +28,10 @@ public class SecurityConfig {
     @Bean
     public WebSecurityCustomizer webSecurityCustomizer() {
         // Całkowicie omija Spring Security dla auth endpoints - żadne filtry się nie wykonają
-        // Uwaga: context-path /api/users jest automatycznie usuwany przez Spring
+        // UWAGA: WebSecurityCustomizer działa PRZED usunięciem context-path!
+        // Dlatego musimy użyć PEŁNEJ ścieżki z /api/users/
         return (web) -> web.ignoring()
-            .requestMatchers("/auth/**");
+            .requestMatchers("/api/users/auth/**");
     }
     @Bean
     @Order(2)
