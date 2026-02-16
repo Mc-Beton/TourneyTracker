@@ -26,16 +26,13 @@ public class SecurityConfig {
     }
     
     @Bean
-    @Order(2)
     public SecurityFilterChain userSecurityFilterChain(HttpSecurity http) throws Exception {
         http
-            // Uwaga: securityMatcher działa PO usunięciu context-path, więc bez /api/users
-            .securityMatcher("/**")
+            // NIE używamy securityMatcher - niech obsługuje wszystkie requesty
             .cors(Customizer.withDefaults())
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                // WAŻNE: requestMatchers w authorizeHttpRequests widzi PEŁNĄ ścieżkę Z context-path!
-                // Dlatego musimy użyć /api/users/auth/**
+                // requestMatchers widzi PEŁNĄ ścieżkę Z context-path /api/users
                 .requestMatchers("/api/users/auth/**").permitAll()
                 .anyRequest().authenticated()
             )
