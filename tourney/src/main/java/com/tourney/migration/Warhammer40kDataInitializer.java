@@ -25,6 +25,9 @@ import java.util.List;
 @Slf4j
 public class Warhammer40kDataInitializer implements ApplicationRunner {
 
+    private static final String LEGACY_NAME = "Warhammer 40,000";
+    private static final String CANONICAL_NAME = "Warhammer 40,000 10th Edition";
+
     private final GameSystemRepository gameSystemRepository;
     private final ArmyFactionRepository armyFactionRepository;
     private final ArmyRepository armyRepository;
@@ -35,21 +38,37 @@ public class Warhammer40kDataInitializer implements ApplicationRunner {
         try {
             log.info("🎮 Inicjalizacja danych Warhammer 40,000...");
 
-            // Sprawdź czy GameSystem istnieje
-            GameSystem wh40k = gameSystemRepository.findAll().stream()
-                    .filter(gs -> gs.getName().equals("Warhammer 40,000"))
+            // Sprawdź czy GameSystem istnieje (najpierw nazwa docelowa, potem legacy)
+            List<GameSystem> systems = gameSystemRepository.findAll();
+
+            GameSystem canonical = systems.stream()
+                    .filter(gs -> CANONICAL_NAME.equals(gs.getName()))
                     .findFirst()
-                    .orElseGet(() -> {
-                        log.info("📦 Tworzę GameSystem: Warhammer 40,000");
-                        GameSystem newGs = new GameSystem();
-                        newGs.setName("Warhammer 40,000");
-                        newGs.setDefaultRoundNumber(5);
-                        newGs.setPrimaryScoreEnabled(true);
-                        newGs.setSecondaryScoreEnabled(true);
-                        newGs.setThirdScoreEnabled(false);
-                        newGs.setAdditionalScoreEnabled(false);
-                        return gameSystemRepository.save(newGs);
-                    });
+                    .orElse(null);
+
+            GameSystem legacy = systems.stream()
+                    .filter(gs -> LEGACY_NAME.equals(gs.getName()))
+                    .findFirst()
+                    .orElse(null);
+
+            GameSystem wh40k;
+            if (canonical != null) {
+                wh40k = canonical;
+            } else if (legacy != null) {
+                log.info("🛠️  Migruję nazwę GameSystem z '{}' na '{}'", LEGACY_NAME, CANONICAL_NAME);
+                legacy.setName(CANONICAL_NAME);
+                wh40k = gameSystemRepository.save(legacy);
+            } else {
+                log.info("📦 Tworzę GameSystem: {}", CANONICAL_NAME);
+                GameSystem newGs = new GameSystem();
+                newGs.setName(CANONICAL_NAME);
+                newGs.setDefaultRoundNumber(5);
+                newGs.setPrimaryScoreEnabled(true);
+                newGs.setSecondaryScoreEnabled(true);
+                newGs.setThirdScoreEnabled(false);
+                newGs.setAdditionalScoreEnabled(false);
+                wh40k = gameSystemRepository.save(newGs);
+            }
 
             // Frakcja Imperium
             ArmyFaction imperium = createOrGetFaction(wh40k, "Imperium");

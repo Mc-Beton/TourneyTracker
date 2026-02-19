@@ -1,5 +1,6 @@
 package com.tourney.controller;
 
+import com.common.security.UserPrincipal;
 import com.tourney.dto.notification.NotificationDTO;
 import com.tourney.service.notification.NotificationService;
 import org.springframework.http.ResponseEntity;
@@ -21,31 +22,31 @@ public class NotificationController {
 
     @GetMapping("/recent")
     public ResponseEntity<List<NotificationDTO>> getRecentNotifications(
-            @AuthenticationPrincipal Long userId,
+            @AuthenticationPrincipal UserPrincipal currentUser,
             @RequestParam(defaultValue = "5") int limit
     ) {
-        List<NotificationDTO> notifications = notificationService.getRecentNotifications(userId, limit);
+        List<NotificationDTO> notifications = notificationService.getRecentNotifications(currentUser.getId(), limit);
         return ResponseEntity.ok(notifications);
     }
 
     @GetMapping("/unread-count")
-    public ResponseEntity<Map<String, Long>> getUnreadCount(@AuthenticationPrincipal Long userId) {
-        long count = notificationService.getUnreadCount(userId);
+    public ResponseEntity<Map<String, Long>> getUnreadCount(@AuthenticationPrincipal UserPrincipal currentUser) {
+        long count = notificationService.getUnreadCount(currentUser.getId());
         return ResponseEntity.ok(Map.of("count", count));
     }
 
     @PostMapping("/{id}/mark-read")
     public ResponseEntity<Void> markAsRead(
             @PathVariable Long id,
-            @AuthenticationPrincipal Long userId
+            @AuthenticationPrincipal UserPrincipal currentUser
     ) {
-        notificationService.markAsRead(id, userId);
+        notificationService.markAsRead(currentUser.getId(), id);
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/mark-all-read")
-    public ResponseEntity<Void> markAllAsRead(@AuthenticationPrincipal Long userId) {
-        notificationService.markAllAsRead(userId);
+    public ResponseEntity<Void> markAllAsRead(@AuthenticationPrincipal UserPrincipal currentUser) {
+        notificationService.markAllAsRead(currentUser.getId());
         return ResponseEntity.ok().build();
     }
 }
