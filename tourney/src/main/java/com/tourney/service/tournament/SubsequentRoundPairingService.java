@@ -5,6 +5,7 @@ import com.tourney.domain.participant.TournamentParticipant;
 import com.tourney.domain.player.PlayerStats;
 import com.tourney.domain.scores.Score;
 import com.tourney.domain.scores.ScoreType;
+import com.tourney.domain.scores.MatchSide;
 import com.tourney.domain.tournament.*;
 import com.common.domain.User;
 import com.tourney.repository.TournamentRoundDefinitionRepository;
@@ -58,7 +59,53 @@ public class SubsequentRoundPairingService {
         tournament.setPhase(TournamentPhase.PAIRINGS_READY);
         tournamentRepository.save(tournament);
         
-        return matchRepository.saveAll(newMatches);
+        List<Match> savedMatches = matchRepository.saveAll(newMatches);
+        
+        // Zapisz punkty za BYE do repozytorium Score, aby były wliczane do statystyk
+        saveByeScores(savedMatches);
+        
+        return savedMatches;
+    }
+
+    private void saveByeScores(List<Match> matches) {
+        for (Match match : matches) {
+            // Sprawdź czy to BYE (tylko gracz 1, brak gracza 2, i posiada wynik)
+            if (match.getPlayer1() != null && match.getPlayer2() == null && match.getMatchResult() != null) {
+                processByeMatchScores(match);
+            }
+        }
+    }
+
+    private void processByeMatchScores(Match match) {
+        MatchResult result = match.getMatchResult();
+        Long playerId = match.getPlayer1().getId();
+        PlayerScore playerScore = result.getPlayerResult(playerId);
+
+        if (playerScore == null) return;
+
+        // Pobierz rundy meczu
+        List<MatchRound> matchRounds = match.getRounds();
+        List<RoundScore> roundScores = playerScore.getRoundScores();
+
+        // Zakładamy, że kolejność i liczba się zgadzają (bo tak tworzy createByeMatch)
+        for (int i = 0; i < Math.min(matchRounds.size(), roundScores.size()); i++) {
+            MatchRound matchRound = matchRounds.get(i);
+            RoundScore roundScore = roundScores.get(i);
+
+            for (Map.Entry<ScoreType, Double> entry : roundScore.getScores().entrySet()) {
+                Score score = new Score();
+                score.setMatchRound(matchRound);
+                score.setSide(MatchSide.PLAYER1);
+                score.setScoreType(entry.getKey());
+                // Konwersja Double na Long
+                score.setScore(entry.getValue().longValue());
+                score.setUser(match.getPlayer1());
+                score.setEnteredAt(LocalDateTime.now());
+                score.setEnteredByUserId(playerId);
+
+                scoreRepository.save(score);
+            }
+        }
     }
 
     private Tournament getTournament(Long tournamentId) {
@@ -150,24 +197,41 @@ public class SubsequentRoundPairingService {
             TableAssignmentStrategy tableStrategy
     ) {
         List<Match> matches = new ArrayList<>();
-        Set<Long> pairedPlayers = new HashSet<>();
         int tableNumber = 1;
 
-        // Parowanie główne
-        for (int i = 0; i < rankedPlayers.size(); i++) {
-            if (pairedPlayers.contains(rankedPlayers.get(i).getUser().getId())) {
-                continue;
-            }
+        List<User> rankedUsers = rankedPlayers.stream()
+                .map(PlayerStats::getUser)
+                .toList();
 
-            Optional<Match> match = tryCreateMatch(rankedPlayers, i, pairedPlayers, previousPairings, currentRound, tableNumber);
-            if (match.isPresent()) {
-                matches.add(match.get());
+        // Najpierw próbujemy znaleźć pełne parowanie bez re-matchy (backtracking).
+        Optional<PairingPlan> noRematchPlan = tryBuildNoRematchPlan(rankedUsers, previousPairings);
+        if (noRematchPlan.isPresent()) {
+            PairingPlan plan = noRematchPlan.get();
+            for (Pairing pair : plan.pairs()) {
+                matches.add(createMatch(pair.player1(), pair.player2(), currentRound, tableNumber));
                 tableNumber++;
             }
-        }
+            if (plan.byePlayer() != null) {
+                matches.add(createByeMatch(plan.byePlayer(), currentRound, tableNumber));
+            }
+        } else {
+            // Fallback: zachowujemy dotychczasową strategię, jeśli pełne parowanie bez powtórek jest niemożliwe.
+            Set<Long> pairedPlayers = new HashSet<>();
 
-        // Obsługa nieparzystej liczby graczy
-        handleOddNumberOfPlayers(rankedPlayers, pairedPlayers, matches, currentRound, tableNumber);
+            for (int i = 0; i < rankedPlayers.size(); i++) {
+                if (pairedPlayers.contains(rankedPlayers.get(i).getUser().getId())) {
+                    continue;
+                }
+
+                Optional<Match> match = tryCreateMatch(rankedPlayers, i, pairedPlayers, previousPairings, currentRound, tableNumber);
+                if (match.isPresent()) {
+                    matches.add(match.get());
+                    tableNumber++;
+                }
+            }
+
+            handleOddNumberOfPlayers(rankedPlayers, pairedPlayers, matches, currentRound, tableNumber);
+        }
 
         // Zastosowanie strategii przypisywania stołów
         if (tableStrategy == TableAssignmentStrategy.RANDOM) {
@@ -177,6 +241,71 @@ public class SubsequentRoundPairingService {
 
         return matches;
     }
+
+    private Optional<PairingPlan> tryBuildNoRematchPlan(List<User> rankedUsers, Set<String> previousPairings) {
+        if (rankedUsers.isEmpty()) {
+            return Optional.of(new PairingPlan(new ArrayList<>(), null));
+        }
+
+        // Parzysta liczba graczy: próbujemy pełnego skojarzenia bez powtórek.
+        if (rankedUsers.size() % 2 == 0) {
+            List<Pairing> pairs = new ArrayList<>();
+            if (buildNoRematchPairs(rankedUsers, previousPairings, pairs)) {
+                return Optional.of(new PairingPlan(pairs, null));
+            }
+            return Optional.empty();
+        }
+
+        // Nieparzysta liczba graczy: wybieramy BYE (od końca rankingu) i próbujemy skojarzyć pozostałych.
+        for (int byeIndex = rankedUsers.size() - 1; byeIndex >= 0; byeIndex--) {
+            User byePlayer = rankedUsers.get(byeIndex);
+            List<User> remainingPlayers = new ArrayList<>(rankedUsers);
+            remainingPlayers.remove(byeIndex);
+
+            List<Pairing> pairs = new ArrayList<>();
+            if (buildNoRematchPairs(remainingPlayers, previousPairings, pairs)) {
+                return Optional.of(new PairingPlan(pairs, byePlayer));
+            }
+        }
+
+        return Optional.empty();
+    }
+
+    private boolean buildNoRematchPairs(
+            List<User> remainingPlayers,
+            Set<String> previousPairings,
+            List<Pairing> resultPairs
+    ) {
+        if (remainingPlayers.isEmpty()) {
+            return true;
+        }
+
+        User currentPlayer = remainingPlayers.get(0);
+
+        for (int opponentIndex = 1; opponentIndex < remainingPlayers.size(); opponentIndex++) {
+            User opponent = remainingPlayers.get(opponentIndex);
+
+            if (havePlayed(previousPairings, currentPlayer.getId(), opponent.getId())) {
+                continue;
+            }
+
+            List<User> nextRemaining = new ArrayList<>(remainingPlayers);
+            nextRemaining.remove(opponentIndex);
+            nextRemaining.remove(0);
+
+            resultPairs.add(new Pairing(currentPlayer, opponent));
+            if (buildNoRematchPairs(nextRemaining, previousPairings, resultPairs)) {
+                return true;
+            }
+            resultPairs.remove(resultPairs.size() - 1);
+        }
+
+        return false;
+    }
+
+    private record Pairing(User player1, User player2) {}
+
+    private record PairingPlan(List<Pairing> pairs, User byePlayer) {}
     
     /**
      * Losuje numery stołów dla wszystkich meczów

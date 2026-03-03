@@ -19,9 +19,9 @@ public class UserLookupController {
 
     /**
      * Przykład:
-     * GET /api/users/search?q=Mich&limit=10
+     * GET /api/users/search?q=Mic&limit=10
      *
-     * Zwraca [] jeśli q ma mniej niż 4 znaki.
+     * Zwraca [] jeśli q ma mniej niż 3 znaki.
      */
     @GetMapping("/search")
     public ResponseEntity<List<UserLookupDTO>> searchUsers(
@@ -30,5 +30,17 @@ public class UserLookupController {
             @AuthenticationPrincipal UserPrincipal currentUser
     ) {
         return ResponseEntity.ok(userLookupService.searchByName(q, currentUser.getId(), limit));
+    }
+
+    /**
+     * Wyszukiwanie miejscowości.
+     * GET /api/users/cities?q=War&limit=10
+     */
+    @GetMapping("/cities")
+    public ResponseEntity<List<String>> searchCities(
+            @RequestParam(name = "q") String q,
+            @RequestParam(name = "limit", required = false) Integer limit
+    ) {
+        return ResponseEntity.ok(userLookupService.searchCity(q, limit));
     }
 }

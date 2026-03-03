@@ -14,14 +14,15 @@ import com.common.domain.User;
 import com.tourney.repository.games.MatchRepository;
 import com.tourney.repository.tournament.TournamentRepository;
 import com.tourney.repository.TournamentRoundDefinitionRepository;
+import com.tourney.repository.tournament.TournamentChallengeRepository;
+import com.tourney.domain.tournament.TournamentChallenge;
+import com.tourney.domain.tournament.ChallengeStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,11 +32,14 @@ public class FirstRoundPairingService {
     private final TournamentRepository tournamentRepository;
     private final MatchRepository matchRepository;
     private final TournamentRoundDefinitionRepository roundDefinitionRepository;
+    private final TournamentChallengeRepository challengeRepository;
 
     public List<Match> createFirstRoundPairings(Long tournamentId) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new RuntimeException("Nie znaleziono turnieju o ID: " + tournamentId));
-
+        
+        TournamentRound firstRound = findFirstRound(tournament);
+        
         validatePlayerCount(tournament);
 
         List<User> confirmedPlayers = new ArrayList<>(
@@ -45,6 +49,33 @@ public class FirstRoundPairingService {
                         .toList()
         );
 
+        List<Match> matches = new ArrayList<>();
+        int tableNumber = 1;
+
+        // 1. Handle Accepted Challenges
+        Set<Long> pairedPlayerIds = new HashSet<>();
+        List<TournamentChallenge> acceptedChallenges = challengeRepository.findAllByTournamentIdAndStatus(tournamentId, ChallengeStatus.ACCEPTED);
+        
+        for (TournamentChallenge challenge : acceptedChallenges) {
+            User p1 = challenge.getChallenger();
+            User p2 = challenge.getOpponent();
+            
+            // Check if both are still confirmed participants
+            if (confirmedPlayers.contains(p1) && confirmedPlayers.contains(p2)) {
+                matches.add(createMatch(p1, p2, firstRound, tableNumber));
+                tableNumber++;
+                
+                pairedPlayerIds.add(p1.getId());
+                pairedPlayerIds.add(p2.getId());
+            }
+        }
+        
+        // Remove challenged players from pool
+        List<User> remainingPlayers = confirmedPlayers.stream()
+                .filter(u -> !pairedPlayerIds.contains(u.getId()))
+                .collect(Collectors.toList());
+
+        // 2. Standard pairing logic for remaining
         // Pobierz definicję pierwszej rundy
         TournamentRoundDefinition roundDefinition = roundDefinitionRepository
                 .findByTournamentIdOrderByRoundNumberAsc(tournamentId)
@@ -62,24 +93,23 @@ public class FirstRoundPairingService {
             
             if (strategy == PlayerLevelPairingStrategy.NONE) {
                 // Brak preferencji - zwykłe losowanie
-                Collections.shuffle(confirmedPlayers);
+                Collections.shuffle(remainingPlayers);
             } else if (strategy == PlayerLevelPairingStrategy.BEGINNERS_WITH_VETERANS) {
                 // Parowanie początkujących z weteranami
-                applyBeginnersWithVeteransStrategy(confirmedPlayers);
+                applyBeginnersWithVeteransStrategy(remainingPlayers);
             } else if (strategy == PlayerLevelPairingStrategy.BEGINNERS_WITH_BEGINNERS) {
                 // Parowanie podobnych poziomów
-                applyBeginnersWithBeginnersStrategy(confirmedPlayers);
+                applyBeginnersWithBeginnersStrategy(remainingPlayers);
             } else {
                 // Fallback - jeśli strategia nie jest rozpoznana
-                Collections.shuffle(confirmedPlayers);
+                Collections.shuffle(remainingPlayers);
             }
         } else {
             // STANDARD - losowe przetasowanie
-            Collections.shuffle(confirmedPlayers);
+            Collections.shuffle(remainingPlayers);
         }
         
-        TournamentRound firstRound = findFirstRound(tournament);
-        List<Match> matches = createPairings(confirmedPlayers, firstRound);
+        matches.addAll(createPairings(remainingPlayers, firstRound, tableNumber));
         
         // Zmiana fazy turnieju - pary dobrane, czeka na start
         tournament.setPhase(TournamentPhase.PAIRINGS_READY);
@@ -106,28 +136,22 @@ public class FirstRoundPairingService {
                 .orElseThrow(() -> new RuntimeException("Nie znaleziono pierwszej rundy turnieju"));
     }
 
-    private List<Match> createPairings(List<User> players, TournamentRound round) {
+
+    private List<Match> createPairings(List<User> players, TournamentRound round, int startTableNumber) {
         List<Match> matches = new ArrayList<>();
-        
-        // Parowanie graczy
+        int tableNumber = startTableNumber;
+
+        // Create pairs for the remaining players (even count)
         for (int i = 0; i < players.size() - 1; i += 2) {
-            matches.add(createMatch(
-                players.get(i),
-                players.get(i + 1),
-                round,
-                (i / 2) + 1
-            ));
+            matches.add(createMatch(players.get(i), players.get(i + 1), round, tableNumber));
+            tableNumber++;
         }
 
-        // Obsługa nieparzystej liczby graczy
+        // Handle odd number of players (BYE)
         if (players.size() % 2 != 0) {
-            matches.add(createByeMatch(
-                players.get(players.size() - 1),
-                round,
-                matches.size() + 1
-            ));
+            matches.add(createByeMatch(players.get(players.size() - 1), round, tableNumber));
         }
-
+        
         return matches;
     }
 

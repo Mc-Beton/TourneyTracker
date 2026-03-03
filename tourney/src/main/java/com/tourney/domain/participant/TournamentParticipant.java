@@ -91,6 +91,9 @@ public class TournamentParticipant {
     @Column(name = "losses", nullable = false, columnDefinition = "INTEGER DEFAULT 0")
     private int losses = 0;
 
+    @Column(name = "additional_points", nullable = false, columnDefinition = "INTEGER DEFAULT 0")
+    private int additionalPoints = 0;
+
     @PrePersist
     protected void onCreate() {
         if (registrationDate == null) {

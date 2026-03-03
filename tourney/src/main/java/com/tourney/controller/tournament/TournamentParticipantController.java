@@ -18,6 +18,22 @@ public class TournamentParticipantController {
 
     private final TournamentParticipantService participantService;
 
+    @PutMapping("/{userId}/additional-points")
+    public ResponseEntity<TournamentParticipantDTO> updateAdditionalPoints(
+            @PathVariable Long tournamentId,
+            @PathVariable Long userId,
+            @RequestBody com.tourney.dto.participant.UpdateAdditionalPointsDTO dto,
+            @AuthenticationPrincipal UserPrincipal currentUser
+    ) {
+        TournamentParticipantDTO result = participantService.updateAdditionalPoints(
+                tournamentId,
+                userId,
+                dto.getAdditionalPoints(),
+                currentUser.getId()
+        );
+        return ResponseEntity.ok(result);
+    }
+    
     /**
      * Uczestnik: Dodaj/edytuj rozpiskę armii
      */

@@ -17,5 +17,6 @@ public class TournamentParticipantDTO {
     private ArmyListStatus armyListStatus;
     private String armyFactionName;
     private String armyName;
+    private int additionalPoints;
 }
 

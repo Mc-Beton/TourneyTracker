@@ -13,6 +13,11 @@ public interface NotificationService {
     void notifyRoundStart(Tournament tournament, TournamentRound round);
     void notifyRoundEndingSoon(Tournament tournament, TournamentRound round, Duration timeLeft);
     void notifyMissingResults(Tournament tournament, Match match);
+
+    // Challenge notifications
+    void notifyChallengeReceived(Long userId, Long challengerId, String challengerName, Long tournamentId, String tournamentName);
+    void notifyChallengeAccepted(Long userId, Long opponentId, String opponentName, Long tournamentId, String tournamentName);
+    void notifyChallengeRejected(Long userId, Long opponentId, String opponentName, Long tournamentId, String tournamentName);
     
     // Additional methods used by controllers/services
     List<NotificationDTO> getRecentNotifications(Long userId, int limit);

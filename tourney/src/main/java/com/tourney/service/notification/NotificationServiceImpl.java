@@ -43,6 +43,28 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
+    public void notifyChallengeReceived(Long userId, Long challengerId, String challengerName, Long tournamentId, String tournamentName) {
+        String msg = "Zostałeś wyzwany na pojedynek w turnieju " + tournamentName + " przez gracza " + challengerName;
+        createNotification(userId, NotificationType.CHALLENGE_RECEIVED, tournamentId, tournamentName,
+                msg, challengerId, challengerName);
+    }
+
+    @Override
+    public void notifyChallengeAccepted(Long userId, Long opponentId, String opponentName, Long tournamentId, String tournamentName) {
+        String msg = "Twoje wyzwanie w turnieju " + tournamentName + " zostało przyjęte przez gracza " + opponentName;
+        createNotification(userId, NotificationType.CHALLENGE_ACCEPTED, tournamentId, tournamentName,
+                msg, opponentId, opponentName);
+    }
+
+    @Override
+    public void notifyChallengeRejected(Long userId, Long opponentId, String opponentName, Long tournamentId, String tournamentName) {
+        String msg = "Twoje wyzwanie w turnieju " + tournamentName + " zostało odrzucone przez gracza " + opponentName;
+        createNotification(userId, NotificationType.CHALLENGE_REJECTED, tournamentId, tournamentName,
+                msg, opponentId, opponentName);
+    }
+
+
+    @Override
     @Transactional(readOnly = true)
     public List<NotificationDTO> getRecentNotifications(Long userId, int limit) {
         log.debug("Getting recent notifications for user {}", userId);

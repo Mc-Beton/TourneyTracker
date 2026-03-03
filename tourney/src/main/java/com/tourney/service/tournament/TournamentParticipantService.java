@@ -169,6 +169,25 @@ public class TournamentParticipantService {
         return mapToDTO(participant);
     }
 
+    @Transactional
+    public TournamentParticipantDTO updateAdditionalPoints(Long tournamentId, Long userId, int points, Long organizerId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new EntityNotFoundException("Tournament not found"));
+
+        if (!tournament.getOrganizer().getId().equals(organizerId)) {
+            throw new SecurityException("Only tournament organizer can update additional points");
+        }
+
+        TournamentParticipant participant = participantRepository
+                .findByTournamentIdAndUserId(tournamentId, userId)
+                .orElseThrow(() -> new EntityNotFoundException("Participant not found"));
+
+        participant.setAdditionalPoints(points);
+        participantRepository.save(participant);
+
+        return mapToDTO(participant);
+    }
+
     private TournamentParticipantDTO mapToDTO(TournamentParticipant p) {
         return TournamentParticipantDTO.builder()
                 .userId(p.getUserId())
@@ -179,6 +198,7 @@ public class TournamentParticipantService {
                 .armyListStatus(p.getArmyListStatus())
                 .armyFactionName(p.getArmyFaction() != null ? p.getArmyFaction().getName() : null)
                 .armyName(p.getArmy() != null ? p.getArmy().getName() : null)
+                .additionalPoints(p.getAdditionalPoints())
                 .build();
     }
 

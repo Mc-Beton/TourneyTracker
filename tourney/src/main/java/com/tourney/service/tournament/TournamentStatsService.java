@@ -35,14 +35,22 @@ public class TournamentStatsService {
                         .draws(participant.getDraws())
                         .losses(participant.getLosses())
                         .tournamentPoints(participant.getTournamentPoints())
+                        .additionalPoints(participant.getAdditionalPoints())
                         .scorePoints(participant.getScorePoints())
                         .matchesPlayed(participant.getMatchesPlayed())
                         .build())
                 // Sortowanie według TP (malejąco), potem małych punktów (malejąco)
-                .sorted(Comparator
-                        .comparingInt(ParticipantStatsDTO::getTournamentPoints)
-                        .thenComparingLong(ParticipantStatsDTO::getScorePoints)
-                        .reversed())
+                // Punktacja dodatkowa uwzględniana tylko jeśli turniej zakończony
+                .sorted((p1, p2) -> {
+                    boolean isCompleted = tournament.getStatus() == com.tourney.dto.tournament.TournamentStatus.COMPLETED;
+                    int tp1 = p1.getTournamentPoints() + (isCompleted ? p1.getAdditionalPoints() : 0);
+                    int tp2 = p2.getTournamentPoints() + (isCompleted ? p2.getAdditionalPoints() : 0);
+                    
+                    if (tp1 != tp2) {
+                        return Integer.compare(tp2, tp1); // desc
+                    }
+                    return Long.compare(p2.getScorePoints(), p1.getScorePoints()); // desc
+                })
                 .collect(Collectors.toList());
     }
 

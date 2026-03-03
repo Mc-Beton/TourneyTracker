@@ -15,7 +15,7 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class UserLookupService {
 
-    private static final int MIN_QUERY_LEN = 4;
+    private static final int MIN_QUERY_LEN = 3;
     private static final int DEFAULT_LIMIT = 10;
 
     private final UserRepository userRepository;
@@ -39,5 +39,16 @@ public class UserLookupService {
                         .name(u.getName())
                         .build())
                 .toList();
+    }
+
+    public List<String> searchCity(String query, Integer limit) {
+        String q = query == null ? "" : query.trim();
+
+        if (q.length() < MIN_QUERY_LEN) {
+            return List.of();
+        }
+
+        int size = (limit == null || limit <= 0 || limit > 20) ? DEFAULT_LIMIT : limit;
+        return userRepository.findDistinctCities(q, PageRequest.of(0, size));
     }
 }

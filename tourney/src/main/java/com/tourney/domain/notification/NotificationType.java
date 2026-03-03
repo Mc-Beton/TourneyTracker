@@ -12,6 +12,11 @@ public enum NotificationType {
     ARMY_LIST_REJECTED,
     TOURNAMENT_STARTED,
     
+    // Challenges
+    CHALLENGE_RECEIVED,
+    CHALLENGE_ACCEPTED,
+    CHALLENGE_REJECTED,
+    
     // Tournament results
     TOURNAMENT_RESULT
 }

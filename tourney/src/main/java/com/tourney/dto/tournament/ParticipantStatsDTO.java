@@ -12,6 +12,7 @@ public class ParticipantStatsDTO {
     private int draws;
     private int losses;
     private int tournamentPoints; // suma dużych punktów
+    private int additionalPoints; // punkty dodatkowe/karne
     private long scorePoints; // suma małych punktów
     private int matchesPlayed;
 }
