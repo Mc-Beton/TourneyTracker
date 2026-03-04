@@ -5,6 +5,7 @@ import com.common.security.UserPrincipal;
 import com.tourney.dto.team.CreateTeamRequest;
 import com.tourney.dto.team.TeamDTO;
 import com.tourney.dto.team.TeamMemberDTO;
+import com.tourney.dto.team.UpdateTeamRequest;
 import com.tourney.service.team.TeamService;
 import com.tourney.repository.user.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -53,6 +54,23 @@ public class TeamController {
                                               @AuthenticationPrincipal UserPrincipal currentUser) {
         User user = getUser(currentUser);
         return new ResponseEntity<>(teamService.createTeam(request, user), HttpStatus.CREATED);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<TeamDTO> updateTeam(@PathVariable Long id, 
+                                              @Valid @RequestBody UpdateTeamRequest request,
+                                              @AuthenticationPrincipal UserPrincipal currentUser) {
+        User user = getUser(currentUser);
+        return ResponseEntity.ok(teamService.updateTeam(id, request, user));
+    }
+    
+    @PutMapping("/{id}/owner/{memberId}")
+    public ResponseEntity<Void> transferOwnership(@PathVariable Long id,
+                                                  @PathVariable Long memberId,
+                                                  @AuthenticationPrincipal UserPrincipal currentUser) {
+        User user = getUser(currentUser);
+        teamService.transferOwnership(id, memberId, user);
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{id}/join")

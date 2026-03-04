@@ -8,6 +8,7 @@ import com.tourney.domain.systems.GameSystem;
 import com.tourney.dto.team.CreateTeamRequest;
 import com.tourney.dto.team.TeamDTO;
 import com.tourney.dto.team.TeamMemberDTO;
+import com.tourney.dto.team.UpdateTeamRequest;
 import com.tourney.repository.team.TeamRepository;
 import com.tourney.repository.team.TeamMemberRepository;
 import com.tourney.repository.systems.GameSystemRepository;
@@ -160,6 +161,54 @@ public class TeamService {
         }
 
         teamMemberRepository.delete(member);
+    }
+
+    @Transactional
+    public TeamDTO updateTeam(Long teamId, UpdateTeamRequest request, User currentUser) {
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new EntityNotFoundException("Team not found"));
+
+        if (!team.getOwner().getId().equals(currentUser.getId())) {
+             throw new IllegalStateException("Only the owner can update the team");
+        }
+
+        if (request.getName() != null && !request.getName().isEmpty() && !request.getName().equals(team.getName())) {
+             if (teamRepository.findByName(request.getName()).isPresent()) {
+                 throw new IllegalArgumentException("Team name already exists");
+             }
+             team.setName(request.getName());
+        }
+
+        if (request.getAbbreviation() != null) team.setAbbreviation(request.getAbbreviation());
+        if (request.getCity() != null) team.setCity(request.getCity());
+        if (request.getDescription() != null) team.setDescription(request.getDescription());
+        
+        team = teamRepository.save(team);
+        return mapToDTO(team, currentUser);
+    }
+
+    @Transactional
+    public void transferOwnership(Long teamId, Long newOwnerMemberId, User currentUser) {
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new EntityNotFoundException("Team not found"));
+
+        if (!team.getOwner().getId().equals(currentUser.getId())) {
+             throw new IllegalStateException("Only the owner can transfer ownership");
+        }
+
+        TeamMember member = teamMemberRepository.findById(newOwnerMemberId)
+                .orElseThrow(() -> new EntityNotFoundException("Member not found"));
+
+        if (!member.getTeam().getId().equals(teamId)) {
+            throw new IllegalArgumentException("Member does not belong to this team");
+        }
+        
+        if (member.getStatus() != TeamMemberStatus.ACTIVE) {
+            throw new IllegalStateException("New owner must be an active member");
+        }
+
+        team.setOwner(member.getUser());
+        teamRepository.save(team);
     }
 
     @Transactional
