@@ -237,11 +237,17 @@ public class TeamService {
     }
 
     private TeamDTO mapToDTO(Team team, User currentUser) {
+        if (currentUser != null && team.getOwner().getId().equals(currentUser.getId())) {
+             // System.out.println("DEBUG: User " + currentUser.getId() + " is owner of team " + team.getId());
+        }
+
         boolean isOwner = currentUser != null && team.getOwner().getId().equals(currentUser.getId());
         boolean isMember = false; 
         
         if (currentUser != null) {
             Optional<TeamMember> member = teamMemberRepository.findByTeamAndUser(team, currentUser);
+            // Even if pending, we should know if they have a relationship? No, DTO says isMember usually implies Active.
+            // But for owner, they MUST be Active member if data is correct.
             if (member.isPresent() && member.get().getStatus() == TeamMemberStatus.ACTIVE) {
                 isMember = true;
             }

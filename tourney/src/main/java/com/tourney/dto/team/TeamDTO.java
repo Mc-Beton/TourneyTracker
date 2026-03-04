@@ -18,6 +18,8 @@ public class TeamDTO {
     private String gameSystemName;
     private LocalDateTime createdAt;
     private int memberCount;
+    @com.fasterxml.jackson.annotation.JsonProperty("isMember")
     private boolean isMember;
+    @com.fasterxml.jackson.annotation.JsonProperty("isOwner")
     private boolean isOwner;
 }
