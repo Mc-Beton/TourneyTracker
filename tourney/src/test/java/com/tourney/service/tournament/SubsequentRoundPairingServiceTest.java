@@ -13,6 +13,10 @@ import com.tourney.domain.tournament.TournamentRoundDefinition;
 import com.tourney.domain.tournament.PairingAlgorithmType;
 import com.tourney.domain.tournament.TableAssignmentStrategy;
 import com.common.domain.User;
+import com.tourney.domain.team.Team;
+import com.tourney.domain.team.TeamMember;
+import com.tourney.domain.team.TeamMemberStatus;
+import com.tourney.repository.team.TeamMemberRepository;
 import com.tourney.repository.TournamentRoundDefinitionRepository;
 import com.tourney.repository.games.MatchRepository;
 import com.tourney.repository.scores.ScoreRepository;
@@ -28,6 +32,7 @@ import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -44,6 +49,9 @@ class SubsequentRoundPairingServiceTest {
     
     @Mock
     private TournamentRoundDefinitionRepository roundDefinitionRepository;
+
+    @Mock
+    private TeamMemberRepository teamMemberRepository;
 
     @InjectMocks
     private SubsequentRoundPairingService pairingService;
@@ -95,6 +103,10 @@ class SubsequentRoundPairingServiceTest {
         roundDefinition = new TournamentRoundDefinition();
         roundDefinition.setPairingAlgorithm(PairingAlgorithmType.STANDARD);
         roundDefinition.setTableAssignmentStrategy(TableAssignmentStrategy.BEST_FIRST);
+        
+        // Mock team member repository by default
+        lenient().when(teamMemberRepository.findActiveMembership(any(), any(), any()))
+                .thenReturn(Optional.empty());
     }
     
     @Test

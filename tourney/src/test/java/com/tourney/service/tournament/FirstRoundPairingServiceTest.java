@@ -8,6 +8,7 @@ import com.tourney.domain.tournament.*;
 import com.tourney.repository.TournamentRoundDefinitionRepository;
 import com.tourney.repository.games.MatchRepository;
 import com.tourney.repository.tournament.TournamentChallengeRepository;
+import com.tourney.repository.team.TeamMemberRepository;
 import com.tourney.repository.tournament.TournamentRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,6 +48,9 @@ class FirstRoundPairingServiceTest {
 
     @Mock
     private TournamentChallengeRepository challengeRepository;
+
+    @Mock
+    private TeamMemberRepository teamMemberRepository;
 
     @InjectMocks
     private FirstRoundPairingService firstRoundPairingService;
@@ -97,6 +101,10 @@ class FirstRoundPairingServiceTest {
         lenient().when(roundDefinitionRepository.findByTournamentIdOrderByRoundNumberAsc(1L))
                 .thenReturn(Collections.singletonList(roundDefinition));
         lenient().when(matchRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+        
+        // Mock team member repo to avoid NPE
+        lenient().when(teamMemberRepository.findActiveMembership(any(), any(), any()))
+                .thenReturn(Optional.empty());
     }
 
     @Test

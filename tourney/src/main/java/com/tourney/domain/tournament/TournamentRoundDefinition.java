@@ -66,4 +66,12 @@ public class TournamentRoundDefinition {
     @Enumerated(EnumType.STRING)
     @Column(name = "table_assignment_strategy")
     private TableAssignmentStrategy tableAssignmentStrategy = TableAssignmentStrategy.BEST_FIRST;
+
+    @Builder.Default
+    @Column(name = "avoid_same_team_pairing", nullable = false)
+    private Boolean avoidSameTeamPairing = false;
+
+    @Builder.Default
+    @Column(name = "avoid_same_city_pairing", nullable = false)
+    private Boolean avoidSameCityPairing = false;
 }

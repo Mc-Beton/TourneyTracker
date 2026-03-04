@@ -22,4 +22,6 @@ public class TournamentRoundDefinitionDTO {
     private String pairingAlgorithm;
     private String playerLevelPairingStrategy;
     private String tableAssignmentStrategy;
+    private Boolean avoidSameTeamPairing;
+    private Boolean avoidSameCityPairing;
 }

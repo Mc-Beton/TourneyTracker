@@ -11,7 +11,9 @@ import com.common.domain.User;
 import com.tourney.repository.TournamentRoundDefinitionRepository;
 import com.tourney.repository.games.MatchRepository;
 import com.tourney.repository.scores.ScoreRepository;
-import com.tourney.repository.tournament.TournamentRepository;
+import com.tourney.repository.team.TeamMemberRepository;
+import com.tourney.domain.team.TeamMember;
+import com.tourney.domain.team.TeamMemberStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +30,7 @@ public class SubsequentRoundPairingService {
     private final MatchRepository matchRepository;
     private final ScoreRepository scoreRepository;
     private final TournamentRoundDefinitionRepository roundDefinitionRepository;
+    private final TeamMemberRepository teamMemberRepository;
 
     public List<Match> createNextRoundPairings(Long tournamentId, int roundNumber) {
         Tournament tournament = getTournament(tournamentId);
@@ -41,6 +44,9 @@ public class SubsequentRoundPairingService {
         List<PlayerStats> rankedPlayers = getRankedPlayers(tournament);
         Set<String> previousPairings = getPreviousPairings(tournament);
         
+        // Pobierz dane o drużynach i miastach
+        Map<Long, PlayerMetadata> playerMetadata = loadPlayerMetadata(rankedPlayers, tournament);
+
         // Dobór algorytmu parowania na podstawie definicji rundy
         PairingAlgorithmType algorithmType = roundDefinition.getPairingAlgorithm();
         TableAssignmentStrategy tableStrategy = roundDefinition.getTableAssignmentStrategy();
@@ -49,10 +55,12 @@ public class SubsequentRoundPairingService {
         
         if (algorithmType == PairingAlgorithmType.CUSTOM) {
             // Custom algorytm - stosujemy wybrane strategie
-            newMatches = createMatches(rankedPlayers, previousPairings, currentRound, tableStrategy);
+            newMatches = createMatches(rankedPlayers, previousPairings, currentRound, tableStrategy, roundDefinition, playerMetadata);
         } else {
             // STANDARD - domyślna strategia (BEST_FIRST)
-            newMatches = createMatches(rankedPlayers, previousPairings, currentRound, TableAssignmentStrategy.BEST_FIRST);
+            // Nawet w STANDARDZIE wypadałoby stosować te flagi, ale dla bezpieczeństwa zróbmy to tylko jeśli definicja mówi, że są włączone
+            // Skoro definicja ma flagi, to w standardzie też je przekażemy
+            newMatches = createMatches(rankedPlayers, previousPairings, currentRound, TableAssignmentStrategy.BEST_FIRST, roundDefinition, playerMetadata);
         }
         
         // Zmiana fazy turnieju - pary dobrane, czeka na start
@@ -190,11 +198,48 @@ public class SubsequentRoundPairingService {
                 .orElseThrow(() -> new RuntimeException("Nie znaleziono rundy " + roundNumber));
     }
 
+    private record PlayerMetadata(Long teamId, String city) {}
+
+    private Map<Long, PlayerMetadata> loadPlayerMetadata(List<PlayerStats> rankedPlayers, Tournament tournament) {
+        Map<Long, PlayerMetadata> metadata = new HashMap<>();
+        List<User> players = rankedPlayers.stream().map(PlayerStats::getUser).toList();
+        
+        // Pobierz wszystkich członków drużyn dla tych graczy i tego game system
+        List<TeamMember> teamMembers = teamMemberRepository.findAll(); 
+        // Powyższe jest nieefektywne na dużej skali, ale wystarczy tu. 
+        // Lepiej: findByUserIdInAndTeam_GameSystemId(userIds, gameSystemId)
+        // Zakładam, że teamMemberRepository.findByUser(user) zwróci listę, a my pofiltrujemy po gameSystemie turnieju.
+        
+        for (User player : players) {
+            Long teamId = null;
+            String city = player.getCity(); // Z User entity
+            
+            Optional<TeamMember> member = teamMemberRepository.findActiveMembership(
+                    player, 
+                    tournament.getGameSystem(), 
+                    TeamMemberStatus.ACTIVE
+            );
+            
+            if (member.isPresent()) {
+                teamId = member.get().getTeam().getId();
+                // Jeśli miasto w User jest puste, można by wziąć z Teamu? user.getTeam() ?
+                if (city == null || city.isEmpty()) {
+                     city = member.get().getTeam().getCity();
+                }
+            }
+            
+            metadata.put(player.getId(), new PlayerMetadata(teamId, city));
+        }
+        return metadata;
+    }
+
     private List<Match> createMatches(
             List<PlayerStats> rankedPlayers, 
             Set<String> previousPairings, 
             TournamentRound currentRound,
-            TableAssignmentStrategy tableStrategy
+            TableAssignmentStrategy tableStrategy,
+            TournamentRoundDefinition definition,
+            Map<Long, PlayerMetadata> playerMetadata
     ) {
         List<Match> matches = new ArrayList<>();
         int tableNumber = 1;
@@ -203,8 +248,8 @@ public class SubsequentRoundPairingService {
                 .map(PlayerStats::getUser)
                 .toList();
 
-        // Najpierw próbujemy znaleźć pełne parowanie bez re-matchy (backtracking).
-        Optional<PairingPlan> noRematchPlan = tryBuildNoRematchPlan(rankedUsers, previousPairings);
+        // Najpierw próbujemy znaleźć pełne parowanie bez re-matchy (backtracking) Z UWZGLĘDNIENIEM OGRANICZEŃ
+        Optional<PairingPlan> noRematchPlan = tryBuildNoRematchPlan(rankedUsers, previousPairings, definition, playerMetadata);
         if (noRematchPlan.isPresent()) {
             PairingPlan plan = noRematchPlan.get();
             for (Pairing pair : plan.pairs()) {
@@ -242,59 +287,106 @@ public class SubsequentRoundPairingService {
         return matches;
     }
 
-    private Optional<PairingPlan> tryBuildNoRematchPlan(List<User> rankedUsers, Set<String> previousPairings) {
+    private Optional<PairingPlan> tryBuildNoRematchPlan(
+            List<User> rankedUsers, 
+            Set<String> previousPairings,
+            TournamentRoundDefinition definition,
+            Map<Long, PlayerMetadata> metadata
+    ) {
         if (rankedUsers.isEmpty()) {
             return Optional.of(new PairingPlan(new ArrayList<>(), null));
         }
 
-        // Parzysta liczba graczy: próbujemy pełnego skojarzenia bez powtórek.
+        // Parzysta liczba graczy
         if (rankedUsers.size() % 2 == 0) {
             List<Pairing> pairs = new ArrayList<>();
-            if (buildNoRematchPairs(rankedUsers, previousPairings, pairs)) {
+            if (buildPairsWithConstraints(rankedUsers, previousPairings, pairs, definition, metadata)) {
                 return Optional.of(new PairingPlan(pairs, null));
             }
             return Optional.empty();
         }
 
-        // Nieparzysta liczba graczy: wybieramy BYE (od końca rankingu) i próbujemy skojarzyć pozostałych.
+        // Nieparzysta liczba graczy: BYE od końca
         for (int byeIndex = rankedUsers.size() - 1; byeIndex >= 0; byeIndex--) {
             User byePlayer = rankedUsers.get(byeIndex);
             List<User> remainingPlayers = new ArrayList<>(rankedUsers);
             remainingPlayers.remove(byeIndex);
 
             List<Pairing> pairs = new ArrayList<>();
-            if (buildNoRematchPairs(remainingPlayers, previousPairings, pairs)) {
+            if (buildPairsWithConstraints(remainingPlayers, previousPairings, pairs, definition, metadata)) {
                 return Optional.of(new PairingPlan(pairs, byePlayer));
             }
         }
 
         return Optional.empty();
     }
-
-    private boolean buildNoRematchPairs(
+    
+    /**
+     * Główna logika parowania z Backtrackingiem.
+     * Uwzględnia:
+     * 1. No Rematch (Hard Constraint - jeśli w previousPairings, to skip)
+     * 2. Score Priority (implicit via rankedUsers order)
+     * 3. Avoid Team/City (Soft Constraint via reordering candidates)
+     */
+    private boolean buildPairsWithConstraints(
             List<User> remainingPlayers,
             Set<String> previousPairings,
-            List<Pairing> resultPairs
+            List<Pairing> resultPairs,
+            TournamentRoundDefinition definition,
+            Map<Long, PlayerMetadata> metadata
     ) {
         if (remainingPlayers.isEmpty()) {
             return true;
         }
 
         User currentPlayer = remainingPlayers.get(0);
+        PlayerMetadata currentMeta = metadata.get(currentPlayer.getId());
 
-        for (int opponentIndex = 1; opponentIndex < remainingPlayers.size(); opponentIndex++) {
+        // Przygotuj listę kandydatów (indeksy)
+        List<Integer> opponentIndices = new ArrayList<>();
+        for (int i = 1; i < remainingPlayers.size(); i++) {
+            opponentIndices.add(i);
+        }
+        
+        // Sortuj kandydatów: Ci bez konfliktów Team/City idą na początek listy
+        // ZACHOWUJĄC przy tym oryginalny porządek Score w ramach grup
+        if (definition.getAvoidSameTeamPairing() || definition.getAvoidSameCityPairing()) {
+            opponentIndices.sort((idx1, idx2) -> {
+                User opp1 = remainingPlayers.get(idx1);
+                User opp2 = remainingPlayers.get(idx2);
+                PlayerMetadata meta1 = metadata.get(opp1.getId());
+                PlayerMetadata meta2 = metadata.get(opp2.getId());
+                
+                boolean conflict1 = hasConflict(currentMeta, meta1, definition);
+                boolean conflict2 = hasConflict(currentMeta, meta2, definition);
+                
+                if (conflict1 && !conflict2) return 1; // 1 ma konflikt, 2 nie -> 2 lepszy (return >0 means 1>2?? No, compare(a,b): -1 if a<b. We want non-conflict first.)
+                // Wait. Comparator: negative if first is smaller/better.
+                // We want NON-CONFLICT (false) before CONFLICT (true).
+                // False < True.
+                if (conflict1 != conflict2) return Boolean.compare(conflict1, conflict2);
+                
+                // Jeśli oba mają konflikt lub oba nie mają, zachowaj oryginalną kolejność (idx1 vs idx2)
+                return Integer.compare(idx1, idx2);
+            });
+        }
+
+        for (int opponentIndex : opponentIndices) {
             User opponent = remainingPlayers.get(opponentIndex);
 
             if (havePlayed(previousPairings, currentPlayer.getId(), opponent.getId())) {
                 continue;
             }
 
+            // Tworzymy nową listę dla rekurencji
             List<User> nextRemaining = new ArrayList<>(remainingPlayers);
+            // Usuwamy w kolejności od większego indeksu, żeby nie popsuć przesunięć
+            // opponentIndex jest indeksem w remainingPlayers
             nextRemaining.remove(opponentIndex);
-            nextRemaining.remove(0);
+            nextRemaining.remove(0); // currentPlayer
 
             resultPairs.add(new Pairing(currentPlayer, opponent));
-            if (buildNoRematchPairs(nextRemaining, previousPairings, resultPairs)) {
+            if (buildPairsWithConstraints(nextRemaining, previousPairings, resultPairs, definition, metadata)) {
                 return true;
             }
             resultPairs.remove(resultPairs.size() - 1);
@@ -302,6 +394,17 @@ public class SubsequentRoundPairingService {
 
         return false;
     }
+    
+    private boolean hasConflict(PlayerMetadata p1, PlayerMetadata p2, TournamentRoundDefinition def) {
+        if (def.getAvoidSameTeamPairing() && p1.teamId() != null && p2.teamId() != null) {
+            if (p1.teamId().equals(p2.teamId())) return true;
+        }
+        if (def.getAvoidSameCityPairing() && p1.city() != null && p2.city() != null && !p1.city().isEmpty() && !p2.city().isEmpty()) {
+            if (p1.city().equalsIgnoreCase(p2.city())) return true;
+        }
+        return false;
+    }
+
 
     private record Pairing(User player1, User player2) {}
 

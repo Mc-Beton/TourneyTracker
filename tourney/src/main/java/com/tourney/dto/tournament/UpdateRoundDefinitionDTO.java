@@ -16,4 +16,6 @@ public class UpdateRoundDefinitionDTO {
     private String pairingAlgorithm;
     private String playerLevelPairingStrategy;
     private String tableAssignmentStrategy;
+    private Boolean avoidSameTeamPairing;
+    private Boolean avoidSameCityPairing;
 }

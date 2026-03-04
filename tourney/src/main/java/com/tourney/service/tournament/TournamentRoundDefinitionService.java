@@ -113,9 +113,15 @@ public class TournamentRoundDefinitionService {
         if (dto.getTableAssignmentStrategy() != null) {
             definition.setTableAssignmentStrategy(TableAssignmentStrategy.valueOf(dto.getTableAssignmentStrategy()));
         }
+        if (dto.getAvoidSameTeamPairing() != null) {
+            definition.setAvoidSameTeamPairing(dto.getAvoidSameTeamPairing());
+        }
+        if (dto.getAvoidSameCityPairing() != null) {
+            definition.setAvoidSameCityPairing(dto.getAvoidSameCityPairing());
+        }
         
-        TournamentRoundDefinition saved = roundDefinitionRepository.save(definition);
-        return toDTO(saved);
+        definition = roundDefinitionRepository.save(definition);
+        return toDTO(definition);
     }
     
     private TournamentRoundDefinitionDTO toDTO(TournamentRoundDefinition entity) {
@@ -133,9 +139,11 @@ public class TournamentRoundDefinitionService {
                 .byeSmallPoints(entity.getByeSmallPoints())
                 .splitLargePoints(entity.getSplitLargePoints())
                 .splitSmallPoints(entity.getSplitSmallPoints())
-                .pairingAlgorithm(entity.getPairingAlgorithm().name())
+                .pairingAlgorithm(entity.getPairingAlgorithm() != null ? entity.getPairingAlgorithm().name() : null)
                 .playerLevelPairingStrategy(entity.getPlayerLevelPairingStrategy() != null ? entity.getPlayerLevelPairingStrategy().name() : null)
                 .tableAssignmentStrategy(entity.getTableAssignmentStrategy() != null ? entity.getTableAssignmentStrategy().name() : null)
+                .avoidSameTeamPairing(entity.getAvoidSameTeamPairing())
+                .avoidSameCityPairing(entity.getAvoidSameCityPairing())
                 .build();
     }
 }
