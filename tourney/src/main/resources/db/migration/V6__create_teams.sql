@@ -1,4 +1,4 @@
-CREATE TABLE teams (
+CREATE TABLE IF NOT EXISTS teams (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
     abbreviation VARCHAR(255) NOT NULL,
@@ -11,7 +11,7 @@ CREATE TABLE teams (
     CONSTRAINT fk_team_game_system FOREIGN KEY (game_system_id) REFERENCES gamesystems (id)
 );
 
-CREATE TABLE team_members (
+CREATE TABLE IF NOT EXISTS team_members (
     id SERIAL PRIMARY KEY,
     team_id BIGINT NOT NULL,
     user_id BIGINT NOT NULL,
