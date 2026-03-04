@@ -20,6 +20,7 @@ spring:
         default_schema: tourney_schema
   flyway:
     enabled: true
+    baseline-on-migrate: true
 
 springdoc:
   api-docs:
