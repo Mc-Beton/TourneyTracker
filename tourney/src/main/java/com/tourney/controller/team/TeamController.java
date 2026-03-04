@@ -86,6 +86,13 @@ public class TeamController {
         teamService.leaveTeam(id, user);
         return ResponseEntity.ok().build();
     }
+    
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteTeam(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal currentUser) {
+        User user = getUser(currentUser);
+        teamService.deleteTeam(id, user);
+        return ResponseEntity.noContent().build();
+    }
 
     @GetMapping("/{id}/members")
     public ResponseEntity<List<TeamMemberDTO>> getMembers(@PathVariable Long id) {

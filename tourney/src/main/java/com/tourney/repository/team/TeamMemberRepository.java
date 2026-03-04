@@ -26,4 +26,6 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember, Long> {
     Optional<TeamMember> findActiveMembership(@Param("user") User user, @Param("gameSystem") GameSystem gameSystem, @Param("status") TeamMemberStatus status);
 
     List<TeamMember> findByTeamAndStatus(Team team, TeamMemberStatus status);
+
+    void deleteByTeam(Team team);
 }

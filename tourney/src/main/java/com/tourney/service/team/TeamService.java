@@ -226,6 +226,19 @@ public class TeamService {
         teamMemberRepository.delete(member);
     }
     
+    @Transactional
+    public void deleteTeam(Long teamId, User user) {
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new EntityNotFoundException("Team not found"));
+
+        if (!team.getOwner().getId().equals(user.getId())) {
+            throw new IllegalStateException("Only the owner can delete the team");
+        }
+
+        teamMemberRepository.deleteByTeam(team);
+        teamRepository.delete(team);
+    }
+
     @Transactional(readOnly = true)
     public List<TeamMemberDTO> getTeamMembers(Long teamId) {
          Team team = teamRepository.findById(teamId)
