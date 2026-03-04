@@ -12,6 +12,7 @@ import com.tourney.repository.TournamentRoundDefinitionRepository;
 import com.tourney.repository.games.MatchRepository;
 import com.tourney.repository.scores.ScoreRepository;
 import com.tourney.repository.team.TeamMemberRepository;
+import com.tourney.repository.tournament.TournamentRepository;
 import com.tourney.domain.team.TeamMember;
 import com.tourney.domain.team.TeamMemberStatus;
 import lombok.RequiredArgsConstructor;

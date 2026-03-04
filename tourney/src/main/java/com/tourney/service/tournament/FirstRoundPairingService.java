@@ -10,6 +10,8 @@ import com.tourney.domain.tournament.Tournament;
 import com.tourney.domain.tournament.TournamentPhase;
 import com.tourney.domain.tournament.TournamentRound;
 import com.tourney.domain.tournament.TournamentRoundDefinition;
+import com.tourney.domain.tournament.TournamentChallenge;
+import com.tourney.domain.tournament.ChallengeStatus;
 import com.common.domain.User;
 import com.tourney.repository.games.MatchRepository;
 import com.tourney.repository.tournament.TournamentRepository;
