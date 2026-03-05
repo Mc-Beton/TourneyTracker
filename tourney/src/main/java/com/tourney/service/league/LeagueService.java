@@ -19,10 +19,13 @@ import com.tourney.repository.league.LeagueMatchRepository;
 import com.tourney.repository.league.LeagueMemberRepository;
 import com.tourney.repository.league.LeagueRepository;
 import com.tourney.repository.league.LeagueTournamentRepository;
+import com.tourney.repository.league.LeagueChallengeRepository;
 import com.tourney.repository.systems.GameSystemRepository;
 import com.tourney.repository.tournament.TournamentRepository;
 import com.tourney.repository.user.UserRepository;
 import com.tourney.service.tournament.TournamentStatsService;
+import com.tourney.service.match.SingleMatchService;
+import com.tourney.dto.matches.CreateSingleMatchDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -44,11 +47,13 @@ public class LeagueService {
     private final LeagueMemberRepository leagueMemberRepository;
     private final LeagueTournamentRepository leagueTournamentRepository;
     private final LeagueMatchRepository leagueMatchRepository;
+    private final LeagueChallengeRepository leagueChallengeRepository;
     private final GameSystemRepository gameSystemRepository;
     private final TournamentRepository tournamentRepository;
     private final MatchRepository matchRepository;
     private final UserRepository userRepository;
     private final TournamentStatsService tournamentStatsService;
+    private final SingleMatchService singleMatchService;
     private final LeagueMapper leagueMapper;
     private final LeagueMemberMapper leagueMemberMapper;
     private final LeagueMatchMapper leagueMatchMapper;
@@ -73,6 +78,7 @@ public class LeagueService {
                 .pointsLoss(createDto.getPointsLoss())
                 .pointsParticipation(createDto.getPointsParticipation())
                 .pointsPerParticipant(createDto.getPointsPerParticipant())
+                .status(LeagueStatus.DRAFT)
                 .build();
         
         league = leagueRepository.save(league);
@@ -87,6 +93,78 @@ public class LeagueService {
         
         return leagueMapper.toDto(league);
     }
+
+    @Transactional
+    public LeagueDTO updateLeague(Long leagueId, UpdateLeagueDTO dto, User owner) {
+        League league = leagueRepository.findById(leagueId)
+                .orElseThrow(() -> new IllegalArgumentException("League not found"));
+
+        if (!league.getOwner().getId().equals(owner.getId())) {
+            throw new IllegalArgumentException("Only owner can update league");
+        }
+
+        if (dto.getName() != null) league.setName(dto.getName());
+        if (dto.getDescription() != null) league.setDescription(dto.getDescription());
+        if (dto.getStartDate() != null) league.setStartDate(dto.getStartDate());
+        if (dto.getEndDate() != null) league.setEndDate(dto.getEndDate());
+        league.setAutoAcceptGames(dto.isAutoAcceptGames());
+        league.setAutoAcceptTournaments(dto.isAutoAcceptTournaments());
+        league.setPointsWin(dto.getPointsWin());
+        league.setPointsDraw(dto.getPointsDraw());
+        league.setPointsLoss(dto.getPointsLoss());
+        league.setPointsParticipation(dto.getPointsParticipation());
+        league.setPointsPerParticipant(dto.getPointsPerParticipant());
+
+        return leagueMapper.toDto(leagueRepository.save(league));
+    }
+
+    @Transactional
+    public void deleteLeague(Long leagueId, User owner) {
+        League league = leagueRepository.findById(leagueId)
+                .orElseThrow(() -> new IllegalArgumentException("League not found"));
+
+        if (!league.getOwner().getId().equals(owner.getId())) {
+            throw new IllegalArgumentException("Only owner can delete league");
+        }
+
+        leagueRepository.delete(league);
+    }
+
+    @Transactional
+    public LeagueDTO setLeagueStatus(Long leagueId, String status, User owner) {
+        League league = leagueRepository.findById(leagueId)
+                .orElseThrow(() -> new IllegalArgumentException("League not found"));
+
+        if (!league.getOwner().getId().equals(owner.getId())) {
+            throw new IllegalArgumentException("Only owner can update league status");
+        }
+
+        try {
+            LeagueStatus newStatus = LeagueStatus.valueOf(status.toUpperCase());
+            league.setStatus(newStatus);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid status: " + status);
+        }
+
+        return leagueMapper.toDto(leagueRepository.save(league));
+    }
+
+    @Transactional
+    public void leaveLeague(Long leagueId, User user) {
+        League league = leagueRepository.findById(leagueId)
+                .orElseThrow(() -> new IllegalArgumentException("League not found"));
+
+        LeagueMember member = leagueMemberRepository.findByLeagueAndUser(league, user)
+                .orElseThrow(() -> new IllegalArgumentException("User is not a member of this league"));
+        
+        // Prevent owner from leaving (or enforce transfer ownership first - for now just prevent)
+        if (league.getOwner().getId().equals(user.getId())) {
+            throw new IllegalArgumentException("Owner cannot leave the league. Delete the league instead.");
+        }
+
+        leagueMemberRepository.delete(member);
+    }
+
 
     @Transactional(readOnly = true)
     public Page<LeagueDTO> listLeagues(Pageable pageable) {
@@ -393,5 +471,101 @@ public class LeagueService {
         
         leagueTournament.setProcessedAt(LocalDateTime.now());
         leagueTournamentRepository.save(leagueTournament);
+    }
+
+    @Transactional
+    public void createChallenge(Long leagueId, Long challengerId, Long challengedId) {
+        League league = leagueRepository.findById(leagueId)
+                .orElseThrow(() -> new IllegalArgumentException("League not found"));
+
+        if (!league.getStatus().equals(LeagueStatus.ACTIVE)) {
+            throw new IllegalArgumentException("League is not active");
+        }
+
+        User challenger = userRepository.findById(challengerId)
+                .orElseThrow(() -> new IllegalArgumentException("Challenger not found"));
+        User challenged = userRepository.findById(challengedId)
+                .orElseThrow(() -> new IllegalArgumentException("Challenged user not found"));
+
+        // Check if both are members
+        if (leagueMemberRepository.findByLeagueAndUser(league, challenger).isEmpty() ||
+            leagueMemberRepository.findByLeagueAndUser(league, challenged).isEmpty()) {
+            throw new IllegalArgumentException("Both users must be members of the league");
+        }
+        
+        LeagueChallenge challenge = LeagueChallenge.builder()
+                .league(league)
+                .challenger(challenger)
+                .challenged(challenged)
+                .status(LeagueApprovalStatus.PENDING)
+                .createdDate(LocalDateTime.now())
+                .build();
+        
+        leagueChallengeRepository.save(challenge);
+    }
+
+    @Transactional
+    public void respondToChallenge(Long challengeId, Long userId, boolean accept) {
+        LeagueChallenge challenge = leagueChallengeRepository.findById(challengeId)
+                .orElseThrow(() -> new IllegalArgumentException("Challenge not found"));
+
+        if (!challenge.getChallenged().getId().equals(userId)) {
+            throw new IllegalArgumentException("Only the challenged user can respond");
+        }
+
+        if (challenge.getStatus() != LeagueApprovalStatus.PENDING) {
+            throw new IllegalArgumentException("Challenge is not pending");
+        }
+
+        if (accept) {
+            challenge.setStatus(LeagueApprovalStatus.APPROVED);
+            
+            // Create Single Match
+            CreateSingleMatchDTO matchDto = CreateSingleMatchDTO.builder()
+                    .gameSystemId(challenge.getLeague().getGameSystem().getId())
+                    .player2Id(challenge.getChallenger().getId())
+                    .build();
+            
+            // Note: createSingleMatch takes creatorId (player1), so challenged user becomes player1 (host)
+            SingleMatch match = singleMatchService.createSingleMatch(matchDto, userId);
+            
+            // Link match to challenge
+            challenge.setMatch(match);
+            
+        } else {
+            challenge.setStatus(LeagueApprovalStatus.REJECTED);
+        }
+        
+        leagueChallengeRepository.save(challenge);
+    }
+
+    @Transactional(readOnly = true)
+    public List<LeagueChallengeDTO> getMyChallenges(Long leagueId, Long userId) {
+        return leagueChallengeRepository.findByChallengedIdAndStatus(userId, LeagueApprovalStatus.PENDING).stream()
+                .filter(c -> c.getLeague().getId().equals(leagueId))
+                .map(this::toChallengeDto)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<LeagueChallengeDTO> getMyOutgoingChallenges(Long leagueId, Long userId) {
+         return leagueChallengeRepository.findByChallengerIdAndStatus(userId, LeagueApprovalStatus.PENDING).stream()
+                .filter(c -> c.getLeague().getId().equals(leagueId))
+                .map(this::toChallengeDto)
+                .collect(Collectors.toList());
+    }
+
+    private LeagueChallengeDTO toChallengeDto(LeagueChallenge c) {
+        return LeagueChallengeDTO.builder()
+                .id(c.getId())
+                .leagueId(c.getLeague().getId())
+                .challengerId(c.getChallenger().getId())
+                .challengerName(c.getChallenger().getUsername())
+                .challengedId(c.getChallenged().getId())
+                .challengedName(c.getChallenged().getUsername())
+                .status(c.getStatus().name())
+                .createdDate(c.getCreatedDate())
+                .matchId(c.getMatch() != null ? c.getMatch().getId() : null)
+                .build();
     }
 }

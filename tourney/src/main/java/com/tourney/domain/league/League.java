@@ -24,6 +24,11 @@ public class League {
     @Column(nullable = false, unique = true)
     private String name;
 
+    @Column(name = "status", nullable = false)
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private LeagueStatus status = LeagueStatus.DRAFT;
+
     @Column(columnDefinition = "TEXT")
     private String description;
 

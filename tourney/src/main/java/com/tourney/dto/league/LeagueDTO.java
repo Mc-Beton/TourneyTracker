@@ -16,6 +16,7 @@ public class LeagueDTO {
     private UserDTO owner;
     private LocalDate startDate;
     private LocalDate endDate;
+    private String status;
     private boolean autoAcceptGames;
     private boolean autoAcceptTournaments;
     private int pointsWin;

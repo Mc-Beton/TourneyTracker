@@ -3,10 +3,12 @@ package com.tourney.controller.league;
 import com.common.domain.User;
 import com.common.security.UserPrincipal;
 import com.tourney.dto.league.CreateLeagueDTO;
+import com.tourney.dto.league.UpdateLeagueDTO;
 import com.tourney.dto.league.LeagueDTO;
 import com.tourney.dto.league.LeagueMemberDTO;
 import com.tourney.dto.league.LeagueMatchDTO;
 import com.tourney.dto.league.LeagueTournamentDTO;
+import com.tourney.dto.league.LeagueChallengeDTO;
 import com.tourney.repository.user.UserRepository;
 import com.tourney.service.league.LeagueService;
 import lombok.RequiredArgsConstructor;
@@ -131,6 +133,65 @@ public class LeagueController {
         User user = getUser(userPrincipal);
         leagueService.approveTournament(tournamentRequestId, user);
         return ResponseEntity.ok().build();
+    }
+
+
+    @PutMapping("/{id}")
+    public ResponseEntity<LeagueDTO> updateLeague(@PathVariable Long id, @RequestBody UpdateLeagueDTO updateDto,
+                                                  @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        User user = getUser(userPrincipal);
+        return ResponseEntity.ok(leagueService.updateLeague(id, updateDto, user));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteLeague(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        User user = getUser(userPrincipal);
+        leagueService.deleteLeague(id, user);
+        return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/{id}/status")
+    public ResponseEntity<LeagueDTO> setLeagueStatus(@PathVariable Long id, @RequestParam String status,
+                                                     @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        User user = getUser(userPrincipal);
+        return ResponseEntity.ok(leagueService.setLeagueStatus(id, status, user));
+    }
+
+    @DeleteMapping("/{id}/leave")
+    public ResponseEntity<Void> leaveLeague(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        User user = getUser(userPrincipal);
+        leagueService.leaveLeague(id, user);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/challenges")
+    public ResponseEntity<Void> createChallenge(@PathVariable Long id, @RequestParam Long challengedId,
+                                                @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        User user = getUser(userPrincipal);
+        leagueService.createChallenge(id, user.getId(), challengedId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/challenges/{challengeId}/respond")
+    public ResponseEntity<Void> respondToChallenge(@PathVariable Long challengeId, @RequestParam boolean accept,
+                                                   @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        User user = getUser(userPrincipal);
+        leagueService.respondToChallenge(challengeId, user.getId(), accept);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/{id}/challenges/my")
+    public ResponseEntity<List<LeagueChallengeDTO>> getMyChallenges(@PathVariable Long id,
+                                                                    @AuthenticationPrincipal UserPrincipal userPrincipal) {
+         User user = getUser(userPrincipal);
+         return ResponseEntity.ok(leagueService.getMyChallenges(id, user.getId()));
+    }
+
+    @GetMapping("/{id}/challenges/outgoing")
+    public ResponseEntity<List<LeagueChallengeDTO>> getMyOutgoingChallenges(@PathVariable Long id,
+                                                                            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+         User user = getUser(userPrincipal);
+         return ResponseEntity.ok(leagueService.getMyOutgoingChallenges(id, user.getId()));
     }
 
     private User getUser(UserPrincipal userPrincipal) {
