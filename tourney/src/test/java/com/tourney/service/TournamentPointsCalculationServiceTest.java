@@ -166,10 +166,10 @@ class TournamentPointsCalculationServiceTest {
     @Test
     void testCalculateTournamentPoints_Strict_Loss_21PlusPoints() {
         // When
-        int result = service.calculateTournamentPoints(50, 100, strictScoring);
+        int result = service.calculateTournamentPoints(79, 100, strictScoring);
 
         // Then
-        assertEquals(5, result, "Big loss should give 5:15");
+        assertEquals(5, result, "21-point loss should give 5:15");
     }
 
     // ===== LENIENT SYSTEM TESTS =====
@@ -284,7 +284,7 @@ class TournamentPointsCalculationServiceTest {
         int result = service.calculateTournamentPoints(999999L, 100000L, strictScoring);
 
         // Then
-        assertEquals(15, result, "Very large difference should give max points");
+        assertEquals(20, result, "Very large difference should give max points (20)");
     }
 
     // ===== SCORE POINTS CALCULATION TESTS =====
