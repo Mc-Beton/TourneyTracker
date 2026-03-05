@@ -76,7 +76,7 @@ class UserLookupServiceTest {
 
     @Test
     void testSearchByName_MinQueryLength_ReturnsResults() {
-        // Given - exactly 4 characters (minimum)
+        // Given - exactly 3 characters (minimum)
         String query = "John";
         List<User> users = Collections.singletonList(user1);
 
@@ -95,8 +95,8 @@ class UserLookupServiceTest {
 
     @Test
     void testSearchByName_QueryTooShort_ReturnsEmptyList() {
-        // Given - query with less than 4 characters
-        String query = "Joe";
+        // Given - query with less than 3 characters (minimum is 3)
+        String query = "Jo";
 
         // When
         List<UserLookupDTO> results = userLookupService.searchByName(query, null, 10);
