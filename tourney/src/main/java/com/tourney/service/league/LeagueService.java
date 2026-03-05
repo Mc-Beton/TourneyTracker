@@ -7,7 +7,7 @@ import com.tourney.domain.games.SingleMatch;
 import com.tourney.domain.games.MatchStatus;
 import com.tourney.domain.systems.GameSystem;
 import com.tourney.domain.tournament.Tournament;
-import com.tourney.domain.tournament.TournamentStatus;
+import com.tourney.dto.tournament.TournamentStatus;
 import com.tourney.dto.league.*;
 import com.tourney.dto.tournament.ParticipantStatsDTO;
 import com.tourney.mapper.league.LeagueMapper;

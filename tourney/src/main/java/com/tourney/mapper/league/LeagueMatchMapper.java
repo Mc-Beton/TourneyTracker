@@ -2,7 +2,7 @@ package com.tourney.mapper.league;
 
 import com.tourney.domain.league.LeagueMatch;
 import com.tourney.dto.league.LeagueMatchDTO;
-import com.tourney.domain.matches.SingleMatch;
+import com.tourney.domain.games.SingleMatch;
 import com.tourney.mapper.match.SingleMatchMapper;
 import com.tourney.mapper.user.UserMapper;
 import org.springframework.beans.factory.annotation.Autowired;

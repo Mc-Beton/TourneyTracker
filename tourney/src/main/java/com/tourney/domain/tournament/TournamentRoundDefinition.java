@@ -40,15 +40,19 @@ public class TournamentRoundDefinition {
     
     private String mapLayoutOdd;
     
+    @Builder.Default
     @Column(nullable = false)
     private Integer byeLargePoints = 0;
     
+    @Builder.Default
     @Column(nullable = false)
     private Integer byeSmallPoints = 0;
     
+    @Builder.Default
     @Column(nullable = false)
     private Integer splitLargePoints = 0;
     
+    @Builder.Default
     @Column(nullable = false)
     private Integer splitSmallPoints = 0;
     
