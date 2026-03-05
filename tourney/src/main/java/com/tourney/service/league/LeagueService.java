@@ -94,6 +94,16 @@ public class LeagueService {
     }
 
     @Transactional(readOnly = true)
+    public Page<LeagueDTO> listJoinedLeagues(Long userId, Pageable pageable) {
+        return leagueRepository.findJoinedLeagues(userId, pageable).map(leagueMapper::toDto);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<LeagueDTO> listAvailableLeagues(Long userId, Pageable pageable) {
+        return leagueRepository.findAvailableLeagues(userId, pageable).map(leagueMapper::toDto);
+    }
+
+    @Transactional(readOnly = true)
     public LeagueDTO getLeague(Long id) {
         return leagueRepository.findById(id)
                 .map(leagueMapper::toDto)
@@ -104,7 +114,18 @@ public class LeagueService {
     public List<LeagueMemberDTO> getLeagueMembers(Long leagueId) {
         League league = leagueRepository.findById(leagueId)
                 .orElseThrow(() -> new IllegalArgumentException("League not found"));
+        // Filter only approved members for general view? Probably yes.
         return leagueMemberRepository.findByLeagueOrderByPointsDesc(league).stream()
+                .filter(m -> m.getStatus() == LeagueMemberStatus.APPROVED)
+                .map(leagueMemberMapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<LeagueMemberDTO> getPendingMembers(Long leagueId) {
+        League league = leagueRepository.findById(leagueId)
+                .orElseThrow(() -> new IllegalArgumentException("League not found"));
+        return leagueMemberRepository.findByLeagueAndStatus(league, LeagueMemberStatus.PENDING, Pageable.unpaged()).stream()
                 .map(leagueMemberMapper::toDto)
                 .collect(Collectors.toList());
     }

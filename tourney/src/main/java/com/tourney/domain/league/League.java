@@ -70,6 +70,9 @@ public class League {
     @Builder.Default
     private int pointsPerParticipant = 1;
 
+    @org.hibernate.annotations.Formula("(select count(lm.id) from league_members lm where lm.league_id = id)")
+    private int memberCount;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 }

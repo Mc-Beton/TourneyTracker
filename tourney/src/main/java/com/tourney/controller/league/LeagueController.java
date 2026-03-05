@@ -38,6 +38,18 @@ public class LeagueController {
         return ResponseEntity.ok(leagueService.listLeagues(pageable));
     }
 
+    @GetMapping("/joined")
+    public ResponseEntity<Page<LeagueDTO>> listJoinedLeagues(Pageable pageable, @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        User user = getUser(userPrincipal);
+        return ResponseEntity.ok(leagueService.listJoinedLeagues(user.getId(), pageable));
+    }
+
+    @GetMapping("/available")
+    public ResponseEntity<Page<LeagueDTO>> listAvailableLeagues(Pageable pageable, @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        User user = getUser(userPrincipal);
+        return ResponseEntity.ok(leagueService.listAvailableLeagues(user.getId(), pageable));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<LeagueDTO> getLeague(@PathVariable Long id) {
         return ResponseEntity.ok(leagueService.getLeague(id));
@@ -46,6 +58,11 @@ public class LeagueController {
     @GetMapping("/{id}/members")
     public ResponseEntity<List<LeagueMemberDTO>> getLeagueMembers(@PathVariable Long id) {
         return ResponseEntity.ok(leagueService.getLeagueMembers(id));
+    }
+
+    @GetMapping("/{id}/members/pending")
+    public ResponseEntity<List<LeagueMemberDTO>> getPendingMembers(@PathVariable Long id) {
+        return ResponseEntity.ok(leagueService.getPendingMembers(id));
     }
 
     @GetMapping("/{id}/matches")
