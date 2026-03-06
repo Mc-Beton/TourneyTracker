@@ -41,8 +41,9 @@ public class LeagueMatch {
     @Column(name = "rejection_reason")
     private String rejectionReason;
 
-    @Column(name = "submitted_at", insertable = false, updatable = false)
-    private LocalDateTime submittedAt;
+@Column(name = "submitted_at", nullable = false)
+    @Builder.Default
+    private LocalDateTime submittedAt = LocalDateTime.now();
 
     @Column(name = "processed_at")
     private LocalDateTime processedAt;

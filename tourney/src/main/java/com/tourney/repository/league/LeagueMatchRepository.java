@@ -14,6 +14,7 @@ import java.util.Optional;
 @Repository
 public interface LeagueMatchRepository extends JpaRepository<LeagueMatch, Long> {
     Optional<LeagueMatch> findByLeagueAndMatch(League league, SingleMatch match);
+    Optional<LeagueMatch> findByMatch(SingleMatch match);
     Page<LeagueMatch> findByLeagueAndStatus(League league, LeagueApprovalStatus status, Pageable pageable);
     Page<LeagueMatch> findByStatus(LeagueApprovalStatus status, Pageable pageable);
     Page<LeagueMatch> findByLeague(League league, Pageable pageable);

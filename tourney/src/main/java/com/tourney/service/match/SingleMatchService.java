@@ -420,6 +420,8 @@ public class SingleMatchService {
 
         // Idempotencja: jeśli już zakończony, zwróć aktualne summary
         if (match.getStatus() != MatchStatus.COMPLETED) {
+            MatchResult result = createMatchResultFromScores(match, currentUserId);
+            match.setMatchResult(result);
             match.setStatus(MatchStatus.COMPLETED);
         }
         if (match.getGameEndTime() == null) {
@@ -482,6 +484,53 @@ public class SingleMatchService {
         for (ScoreType t : ScoreType.values()) {
             target.merge(t, add.getOrDefault(t, 0), Integer::sum);
         }
+    }
+
+    private MatchResult createMatchResultFromScores(Match match, Long currentUserId) {
+        List<Score> scores = scoreRepository.findAllByMatchIdWithRound(match.getId());
+
+        MatchResult result = new MatchResult();
+        result.setSubmissionTime(LocalDateTime.now());
+        result.setSubmittedById(currentUserId);
+
+        Map<Long, Map<Integer, RoundScore>> playerRoundScores = new HashMap<>();
+
+        for (Score s : scores) {
+            Long playerId = null;
+            if (s.getSide() == MatchSide.PLAYER1 && match.getPlayer1() != null) {
+                playerId = match.getPlayer1().getId();
+            } else if (s.getSide() == MatchSide.PLAYER2 && match.getPlayer2() != null) {
+                playerId = match.getPlayer2().getId();
+            }
+
+            if (playerId == null) {
+                continue;
+            }
+
+            playerRoundScores.computeIfAbsent(playerId, k -> new HashMap<>());
+            Map<Integer, RoundScore> userRounds = playerRoundScores.get(playerId);
+
+            int roundNum = s.getMatchRound() != null ? s.getMatchRound().getRoundNumber() : 0;
+            userRounds.computeIfAbsent(roundNum, k -> new RoundScore());
+            RoundScore rs = userRounds.get(roundNum);
+
+            rs.getScores().put(s.getScoreType(), s.getScore() != null ? s.getScore().doubleValue() : 0.0);
+        }
+
+        for (Map.Entry<Long, Map<Integer, RoundScore>> entry : playerRoundScores.entrySet()) {
+            Long pid = entry.getKey();
+            List<RoundScore> sortedRounds = entry.getValue().entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey()) // Sort by round number
+                    .map(Map.Entry::getValue)
+                    .collect(Collectors.toList());
+            
+            PlayerScore ps = new PlayerScore();
+            ps.setRoundScores(sortedRounds);
+            result.addPlayerResult(pid, ps);
+        }
+
+        result.calculateWinner();
+        return result;
     }
 
     private int safeLongToInt(Long v) {

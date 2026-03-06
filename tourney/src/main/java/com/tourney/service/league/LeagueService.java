@@ -285,18 +285,16 @@ public class LeagueService {
         if (!(match instanceof SingleMatch)) return;
         SingleMatch singleMatch = (SingleMatch) match;
         
-        List<LeagueMatch> allMatches = leagueMatchRepository.findAll();
-        for (LeagueMatch lm : allMatches) {
-            if (lm.getMatch().getId().equals(singleMatch.getId())) {
-                 if (singleMatch.getStatus() == MatchStatus.COMPLETED) {
-                      if (lm.getLeague().isAutoAcceptGames() && lm.getStatus() == LeagueApprovalStatus.PENDING) {
-                           lm.setStatus(LeagueApprovalStatus.APPROVED);
-                           lm = leagueMatchRepository.save(lm);
-                           processMatchPoints(lm);
-                      }
-                 }
-                 return;
-            }
+        Optional<LeagueMatch> opt = leagueMatchRepository.findByMatch(singleMatch);
+        if (opt.isPresent()) {
+            LeagueMatch lm = opt.get();
+             if (singleMatch.getStatus() == MatchStatus.COMPLETED) {
+                  if (lm.getLeague().isAutoAcceptGames() && lm.getStatus() == LeagueApprovalStatus.PENDING) {
+                       lm.setStatus(LeagueApprovalStatus.APPROVED);
+                       lm = leagueMatchRepository.save(lm);
+                       processMatchPoints(lm);
+                  }
+             }
         }
     }
 
