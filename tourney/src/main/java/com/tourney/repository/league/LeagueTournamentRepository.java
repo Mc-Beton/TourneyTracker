@@ -1,7 +1,7 @@
 package com.tourney.repository.league;
 
 import com.tourney.domain.league.League;
-import com.tourney.domain.league.LeagueApprovalStatus;
+import com.tourney.dto.tournament.TournamentStatus;
 import com.tourney.domain.league.LeagueTournament;
 import com.tourney.domain.tournament.Tournament;
 import org.springframework.data.domain.Page;
@@ -16,7 +16,7 @@ public interface LeagueTournamentRepository extends JpaRepository<LeagueTourname
     
     Optional<LeagueTournament> findByLeagueAndTournament(League league, Tournament tournament);
     
-    Page<LeagueTournament> findByLeagueAndStatus(League league, LeagueApprovalStatus status, Pageable pageable);
+    Page<LeagueTournament> findByLeagueAndTournamentStatus(League league, TournamentStatus status, Pageable pageable);
     
-    Page<LeagueTournament> findByStatus(LeagueApprovalStatus status, Pageable pageable);
+
 }

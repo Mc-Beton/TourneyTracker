@@ -28,7 +28,7 @@ public class LeagueTournamentMapper {
         dto.setLeagueId(leagueTournament.getLeague().getId());
         dto.setTournament(tournamentMapper.toDto(leagueTournament.getTournament()));
         dto.setSubmittedBy(userMapper.toDto(leagueTournament.getSubmittedBy()));
-        dto.setStatus(leagueTournament.getStatus());
+        dto.setStatus(leagueTournament.getTournament().getStatus());
         dto.setSubmitDate(leagueTournament.getSubmittedAt());
         dto.setProcessedDate(leagueTournament.getProcessedAt());
         dto.setRejectionReason(leagueTournament.getRejectionReason());

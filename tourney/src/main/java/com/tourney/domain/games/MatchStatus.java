@@ -7,6 +7,7 @@ import jakarta.persistence.Enumerated;
 import java.time.LocalDateTime;
 
 public enum MatchStatus {
+    PENDING,
     SCHEDULED,
     IN_PROGRESS,
     COMPLETED,

@@ -32,10 +32,7 @@ public class LeagueTournament {
     @JoinColumn(name = "submitted_by", nullable = false)
     private User submittedBy;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    @Builder.Default
-    private LeagueApprovalStatus status = LeagueApprovalStatus.PENDING;
+    // Status is now handled by the Tournament entity
 
     @Column(name = "rejection_reason")
     private String rejectionReason;

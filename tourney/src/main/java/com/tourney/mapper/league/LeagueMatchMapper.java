@@ -30,7 +30,7 @@ public class LeagueMatchMapper {
         // LeagueMatch has getMatch() which returns SingleMatch (Entity)
         dto.setMatch(singleMatchMapper.toDto(leagueMatch.getMatch()));
         dto.setSubmittedBy(userMapper.toDto(leagueMatch.getSubmittedBy()));
-        dto.setStatus(leagueMatch.getStatus());
+        dto.setStatus(leagueMatch.getMatch().getStatus());
         dto.setSubmitDate(leagueMatch.getSubmittedAt());
         dto.setProcessedDate(leagueMatch.getProcessedAt());
         dto.setRejectionReason(leagueMatch.getRejectionReason());

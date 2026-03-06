@@ -1,6 +1,7 @@
 package com.tourney.dto.tournament;
 
 public enum TournamentStatus {
+    PENDING("Oczekujący"),
     DRAFT("W przygotowaniu"),
     ACTIVE("Aktywny"),
     IN_PROGRESS("W trakcie"),

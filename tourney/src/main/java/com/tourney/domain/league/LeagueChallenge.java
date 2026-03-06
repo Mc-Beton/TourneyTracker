@@ -2,6 +2,7 @@ package com.tourney.domain.league;
 
 import com.common.domain.User;
 import com.tourney.domain.games.Match;
+import com.tourney.domain.games.MatchStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -35,7 +36,7 @@ public class LeagueChallenge {
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     @Builder.Default
-    private LeagueApprovalStatus status = LeagueApprovalStatus.PENDING;
+    private MatchStatus status = MatchStatus.PENDING;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "match_id")

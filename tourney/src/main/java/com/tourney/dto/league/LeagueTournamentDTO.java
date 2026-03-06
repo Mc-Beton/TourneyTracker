@@ -1,6 +1,6 @@
 package com.tourney.dto.league;
 
-import com.tourney.domain.league.LeagueApprovalStatus;
+import com.tourney.dto.tournament.TournamentStatus;
 import com.tourney.dto.tournament.TournamentResponseDTO;
 import com.tourney.dto.user.UserDTO;
 import lombok.Data;
@@ -14,7 +14,7 @@ public class LeagueTournamentDTO {
     private Long leagueId;
     private TournamentResponseDTO tournament;
     private UserDTO submittedBy;
-    private LeagueApprovalStatus status;
+    private TournamentStatus status;
     private LocalDateTime submitDate;
     private LocalDateTime processedDate;
     private String rejectionReason;

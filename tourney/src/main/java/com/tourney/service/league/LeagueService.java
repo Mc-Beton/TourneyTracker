@@ -222,7 +222,7 @@ public class LeagueService {
     public Page<LeagueTournamentDTO> getLeagueTournaments(Long leagueId, Pageable pageable) {
         League league = leagueRepository.findById(leagueId)
                 .orElseThrow(() -> new IllegalArgumentException("League not found"));
-        return leagueTournamentRepository.findByLeagueAndStatus(league, LeagueApprovalStatus.APPROVED, pageable)
+        return leagueTournamentRepository.findByLeagueAndTournamentStatus(league, TournamentStatus.COMPLETED, pageable)
                 .map(leagueTournamentMapper::toDto);
     }
     
@@ -230,7 +230,7 @@ public class LeagueService {
     public Page<LeagueMatchDTO> getPendingMatches(Long leagueId, Pageable pageable) {
         League league = leagueRepository.findById(leagueId)
                 .orElseThrow(() -> new IllegalArgumentException("League not found"));
-        return leagueMatchRepository.findByLeagueAndStatus(league, LeagueApprovalStatus.PENDING, pageable)
+        return leagueMatchRepository.findByLeagueAndMatchStatus(league, MatchStatus.PENDING, pageable)
                 .map(leagueMatchMapper::toDto);
     }
 
@@ -238,7 +238,7 @@ public class LeagueService {
     public Page<LeagueTournamentDTO> getPendingTournaments(Long leagueId, Pageable pageable) {
         League league = leagueRepository.findById(leagueId)
                 .orElseThrow(() -> new IllegalArgumentException("League not found"));
-        return leagueTournamentRepository.findByLeagueAndStatus(league, LeagueApprovalStatus.PENDING, pageable)
+        return leagueTournamentRepository.findByLeagueAndTournamentStatus(league, TournamentStatus.PENDING, pageable)
                 .map(leagueTournamentMapper::toDto);
     }
 
@@ -289,11 +289,7 @@ public class LeagueService {
         if (opt.isPresent()) {
             LeagueMatch lm = opt.get();
              if (singleMatch.getStatus() == MatchStatus.COMPLETED) {
-                  if (lm.getLeague().isAutoAcceptGames() && lm.getStatus() == LeagueApprovalStatus.PENDING) {
-                       lm.setStatus(LeagueApprovalStatus.APPROVED);
-                       lm = leagueMatchRepository.save(lm);
-                       processMatchPoints(lm);
-                  }
+                 processMatchPoints(lm);
              }
         }
     }
@@ -312,9 +308,8 @@ public class LeagueService {
         
         SingleMatch singleMatch = (SingleMatch) match;
         
-        if (singleMatch.getStatus() != MatchStatus.COMPLETED) {
-             throw new IllegalArgumentException("Match is not completed");
-        }
+        // Removed explicit check for COMPLETED status to allow submitting pending matches for tracking
+        // But if it IS completed, we process points immediately.
 
         Optional<LeagueMatch> existingMatch = leagueMatchRepository.findByLeagueAndMatch(league, singleMatch);
         LeagueMatch leagueMatch;
@@ -322,27 +317,26 @@ public class LeagueService {
         if (existingMatch.isPresent()) {
             leagueMatch = existingMatch.get();
             if (leagueMatch.getProcessedAt() != null) {
+                // If processed, we don't re-submit. (Or maybe we update submission info?)
+                // For now, keep existing behavior: prevent re-submission if processed.
                 throw new IllegalArgumentException("Match already submitted and processed");
             }
             // Update submitter to the person actually submitting the result
             leagueMatch.setSubmittedBy(submittor);
             
-            // If league is auto-accept, ensure status is APPROVED to trigger processing
-            if (league.isAutoAcceptGames()) {
-                leagueMatch.setStatus(LeagueApprovalStatus.APPROVED);
-            }
+            // Status is now handled by Match entity
         } else {
             leagueMatch = LeagueMatch.builder()
                   .league(league)
                   .match(singleMatch)
                   .submittedBy(submittor)
-                  .status(league.isAutoAcceptGames() ? LeagueApprovalStatus.APPROVED : LeagueApprovalStatus.PENDING)
+                  // Status removed
                   .build();
         }
               
         leagueMatch = leagueMatchRepository.save(leagueMatch);
         
-        if (leagueMatch.getStatus() == LeagueApprovalStatus.APPROVED) {
+        if (singleMatch.getStatus() == MatchStatus.COMPLETED) {
             processMatchPoints(leagueMatch);
         }
     }
@@ -363,16 +357,21 @@ public class LeagueService {
              throw new IllegalArgumentException("Tournament already submitted to this league");
         }
 
+        boolean autoAccept = league.isAutoAcceptTournaments();
+        if (!autoAccept) {
+            tournament.setStatus(TournamentStatus.PENDING);
+            tournamentRepository.save(tournament);
+        }
+
         LeagueTournament leagueTournament = LeagueTournament.builder()
               .league(league)
               .tournament(tournament)
               .submittedBy(submittor)
-              .status(league.isAutoAcceptTournaments() ? LeagueApprovalStatus.APPROVED : LeagueApprovalStatus.PENDING)
               .build();
               
         leagueTournament = leagueTournamentRepository.save(leagueTournament);
         
-        if (leagueTournament.getStatus() == LeagueApprovalStatus.APPROVED) {
+        if (autoAccept) { // Previously COMPLETED
             processTournamentPoints(leagueTournament);
         }
     }
@@ -386,12 +385,13 @@ public class LeagueService {
              throw new IllegalArgumentException("Only owner can approve matches");
         }
 
-        if (leagueMatch.getStatus() != LeagueApprovalStatus.PENDING) {
+        if (leagueMatch.getMatch().getStatus() != MatchStatus.PENDING) {
              throw new IllegalArgumentException("Request is not pending");
         }
         
-        leagueMatch.setStatus(LeagueApprovalStatus.APPROVED);
-        leagueMatch = leagueMatchRepository.save(leagueMatch);
+        SingleMatch match = leagueMatch.getMatch();
+        match.setStatus(MatchStatus.COMPLETED);
+        matchRepository.save(match);
         
         processMatchPoints(leagueMatch);
     }
@@ -405,12 +405,13 @@ public class LeagueService {
              throw new IllegalArgumentException("Only owner can approve tournaments");
         }
 
-        if (leagueTournament.getStatus() != LeagueApprovalStatus.PENDING) {
+        if (leagueTournament.getTournament().getStatus() != TournamentStatus.PENDING) {
              throw new IllegalArgumentException("Request is not pending");
         }
         
-        leagueTournament.setStatus(LeagueApprovalStatus.APPROVED);
-        leagueTournament = leagueTournamentRepository.save(leagueTournament);
+        Tournament tournament = leagueTournament.getTournament();
+        tournament.setStatus(TournamentStatus.COMPLETED);
+        tournamentRepository.save(tournament);
         
         processTournamentPoints(leagueTournament);
     }
@@ -530,7 +531,7 @@ public class LeagueService {
                 .league(league)
                 .challenger(challenger)
                 .challenged(challenged)
-                .status(LeagueApprovalStatus.PENDING)
+                .status(MatchStatus.PENDING)
                 .scheduledTime(dto.getScheduledTime())
                 .message(dto.getMessage())
                 .createdDate(LocalDateTime.now())
@@ -556,12 +557,12 @@ public class LeagueService {
             throw new IllegalArgumentException("Only the challenged user can respond");
         }
 
-        if (challenge.getStatus() != LeagueApprovalStatus.PENDING) {
+        if (challenge.getStatus() != MatchStatus.PENDING) {
             throw new IllegalArgumentException("Challenge is not pending");
         }
 
         if (accept) {
-            challenge.setStatus(LeagueApprovalStatus.APPROVED);
+            challenge.setStatus(MatchStatus.SCHEDULED);
             
             // Create Single Match
             CreateSingleMatchDTO matchDto = CreateSingleMatchDTO.builder()
@@ -580,12 +581,11 @@ public class LeagueService {
                     .league(challenge.getLeague())
                     .match(match)
                     .submittedBy(challenge.getChallenged())
-                    .status(LeagueApprovalStatus.PENDING)
                     .build();
             leagueMatchRepository.save(leagueMatch);
             
         } else {
-            challenge.setStatus(LeagueApprovalStatus.REJECTED);
+            challenge.setStatus(MatchStatus.CANCELLED);
         }
         
         leagueChallengeRepository.save(challenge);
@@ -593,7 +593,7 @@ public class LeagueService {
 
     @Transactional(readOnly = true)
     public List<LeagueChallengeDTO> getMyChallenges(Long leagueId, Long userId) {
-        return leagueChallengeRepository.findByChallengedIdAndStatus(userId, LeagueApprovalStatus.PENDING).stream()
+        return leagueChallengeRepository.findByChallengedIdAndStatus(userId, MatchStatus.PENDING).stream()
                 .filter(c -> c.getLeague().getId().equals(leagueId))
                 .map(this::toChallengeDto)
                 .collect(Collectors.toList());
@@ -601,7 +601,7 @@ public class LeagueService {
 
     @Transactional(readOnly = true)
     public List<LeagueChallengeDTO> getMyOutgoingChallenges(Long leagueId, Long userId) {
-         return leagueChallengeRepository.findByChallengerIdAndStatus(userId, LeagueApprovalStatus.PENDING).stream()
+         return leagueChallengeRepository.findByChallengerIdAndStatus(userId, MatchStatus.PENDING).stream()
                 .filter(c -> c.getLeague().getId().equals(leagueId))
                 .map(this::toChallengeDto)
                 .collect(Collectors.toList());
