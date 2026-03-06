@@ -26,6 +26,7 @@ import com.tourney.repository.user.UserRepository;
 import com.tourney.service.tournament.TournamentStatsService;
 import com.tourney.service.match.SingleMatchService;
 import com.tourney.dto.matches.CreateSingleMatchDTO;
+import com.tourney.service.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -58,6 +59,7 @@ public class LeagueService {
     private final LeagueMemberMapper leagueMemberMapper;
     private final LeagueMatchMapper leagueMatchMapper;
     private final LeagueTournamentMapper leagueTournamentMapper;
+    private final NotificationService notificationService;
 
     @Transactional
     public LeagueDTO createLeague(CreateLeagueDTO createDto, User owner) {
@@ -504,6 +506,14 @@ public class LeagueService {
                 .build();
         
         leagueChallengeRepository.save(challenge);
+
+        notificationService.notifyLeagueChallengeReceived(
+                challenged.getId(), 
+                challenger.getId(), 
+                challenger.getName(), 
+                league.getId(), 
+                league.getName()
+        );
     }
 
     @Transactional

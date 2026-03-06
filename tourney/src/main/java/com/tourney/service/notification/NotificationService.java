@@ -19,6 +19,9 @@ public interface NotificationService {
     void notifyChallengeAccepted(Long userId, Long opponentId, String opponentName, Long tournamentId, String tournamentName);
     void notifyChallengeRejected(Long userId, Long opponentId, String opponentName, Long tournamentId, String tournamentName);
     
+    // League Challenge notifications
+    void notifyLeagueChallengeReceived(Long userId, Long challengerId, String challengerName, Long leagueId, String leagueName);
+    
     // Additional methods used by controllers/services
     List<NotificationDTO> getRecentNotifications(Long userId, int limit);
     int getUnreadCount(Long userId);
