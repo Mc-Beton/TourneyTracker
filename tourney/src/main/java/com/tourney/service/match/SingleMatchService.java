@@ -23,6 +23,7 @@ import com.tourney.repository.user.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -51,7 +52,8 @@ public class SingleMatchService {
     private final com.tourney.service.tournament.ParticipantStatsUpdateService participantStatsUpdateService;
 
     @Lazy
-    private final com.tourney.service.league.LeagueService leagueService;
+    @Autowired
+    private com.tourney.service.league.LeagueService leagueService;
 
     public SingleMatch createSingleMatch(CreateSingleMatchDTO dto, Long currentUserId) {
         validate(dto, currentUserId);
