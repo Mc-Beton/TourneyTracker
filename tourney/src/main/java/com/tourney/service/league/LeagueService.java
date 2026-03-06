@@ -281,6 +281,26 @@ public class LeagueService {
     }
     
     @Transactional
+    public void syncLeagueMatchStatus(Match match) {
+        if (!(match instanceof SingleMatch)) return;
+        SingleMatch singleMatch = (SingleMatch) match;
+        
+        List<LeagueMatch> allMatches = leagueMatchRepository.findAll();
+        for (LeagueMatch lm : allMatches) {
+            if (lm.getMatch().getId().equals(singleMatch.getId())) {
+                 if (singleMatch.getStatus() == MatchStatus.COMPLETED) {
+                      if (lm.getLeague().isAutoAcceptGames() && lm.getStatus() == LeagueApprovalStatus.PENDING) {
+                           lm.setStatus(LeagueApprovalStatus.APPROVED);
+                           lm = leagueMatchRepository.save(lm);
+                           processMatchPoints(lm);
+                      }
+                 }
+                 return;
+            }
+        }
+    }
+
+    @Transactional
     public void submitMatch(Long leagueId, Long matchId, User submittor) {
         League league = leagueRepository.findById(leagueId)
              .orElseThrow(() -> new IllegalArgumentException("League not found"));

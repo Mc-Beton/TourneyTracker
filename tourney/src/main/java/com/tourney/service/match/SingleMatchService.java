@@ -50,6 +50,9 @@ public class SingleMatchService {
     @Lazy
     private final com.tourney.service.tournament.ParticipantStatsUpdateService participantStatsUpdateService;
 
+    @Lazy
+    private final com.tourney.service.league.LeagueService leagueService;
+
     public SingleMatch createSingleMatch(CreateSingleMatchDTO dto, Long currentUserId) {
         validate(dto, currentUserId);
 
@@ -445,7 +448,15 @@ public class SingleMatchService {
         }
 
         // Zwróć pełne podsumowanie (już masz gotowe mapowanie + flagi scoreEnabled)
-        return getMatchSummary(matchId, currentUserId);
+        MatchSummaryDTO summary = getMatchSummary(matchId, currentUserId);
+        
+        try {
+            leagueService.syncLeagueMatchStatus(match);
+        } catch (Exception e) {
+            System.err.println("Failed to sync league match status: " + e.getMessage());
+        }
+        
+        return summary;
     }
 
     private String resolvePlayer2DisplayName(Match match) {
