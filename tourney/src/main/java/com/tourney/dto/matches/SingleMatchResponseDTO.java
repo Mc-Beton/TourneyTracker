@@ -27,4 +27,8 @@ public class SingleMatchResponseDTO {
 
     private boolean hotSeat;
     private MatchMode mode;
+
+    private Long winnerId;
+    private Double player1Score;
+    private Double player2Score;
 }

@@ -28,24 +28,43 @@ public class SingleMatchMapper {
                 ? match.getDetails().getGameSystem().getName()
                 : null;
 
-        Integer p1Ready = match.isPlayer1Ready() ? 1 : 0;
-        Integer p2Ready = match.isPlayer2Ready() ? 1 : 0;
+        boolean p1Ready = match.isPlayer1Ready();
+        boolean p2Ready = match.isPlayer2Ready();
 
+        Double p1Score = null;
+        Double p2Score = null;
+        Long winnerId = null;
+
+        if (match.getMatchResult() != null) {
+            winnerId = match.getMatchResult().getWinnerId();
+            if (match.getPlayer1() != null) {
+                p1Score = match.getMatchResult().getPlayerScore(match.getPlayer1().getId());
+            }
+            if (match.getPlayer2() != null) {
+                p2Score = match.getMatchResult().getPlayerScore(match.getPlayer2().getId());
+            }
+        }
+
+        String matchName = match.getDetails() != null ? match.getDetails().getMatchName() : null;
+        
         return SingleMatchResponseDTO.builder()
                 .matchId(match.getId())
-                .matchName(match.getDetails() != null ? match.getDetails().getMatchName() : null)
+                .matchName(matchName)
                 .startTime(match.getStartTime())
                 .endTime(match.getGameEndTime())
                 .gameSystemId(gameSystemId)
                 .gameSystemName(gameSystemName)
                 .player1Id(match.getPlayer1() != null ? match.getPlayer1().getId() : null)
                 .player1Name(match.getPlayer1() != null ? match.getPlayer1().getName() : null)
-                .player1ready(p1Ready)
+                .player1ready(p1Ready ? 1 : 0)
                 .player2Id(match.getPlayer2() != null ? match.getPlayer2().getId() : null)
-                .player2ready(p2Ready)
                 .player2Name(resolvedPlayer2Name)
+                .player2ready(p2Ready ? 1 : 0)
                 .hotSeat(match.getPlayer2() == null)
                 .mode(match.getDetails() != null ? match.getDetails().getMode() : null)
+                .winnerId(winnerId)
+                .player1Score(p1Score)
+                .player2Score(p2Score)
                 .build();
     }
 }
