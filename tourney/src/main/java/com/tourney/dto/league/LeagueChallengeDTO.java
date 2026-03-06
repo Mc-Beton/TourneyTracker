@@ -15,5 +15,7 @@ public class LeagueChallengeDTO {
     private String challengedName;
     private String status;
     private LocalDateTime createdDate;
+    private LocalDateTime scheduledTime;
+    private String message;
     private Long matchId;
 }

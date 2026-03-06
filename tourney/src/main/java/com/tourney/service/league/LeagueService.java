@@ -577,6 +577,8 @@ public class LeagueService {
                 .challengedName(c.getChallenged().getName())
                 .status(c.getStatus().name())
                 .createdDate(c.getCreatedDate())
+                .scheduledTime(c.getScheduledTime())
+                .message(c.getMessage())
                 .matchId(c.getMatch() != null ? c.getMatch().getId() : null)
                 .build();
     }
