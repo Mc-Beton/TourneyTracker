@@ -27,6 +27,9 @@ public class LeagueMapper {
         dto.setId(league.getId());
         dto.setName(league.getName());
         dto.setDescription(league.getDescription());
+        if (league.getStatus() != null) {
+            dto.setStatus(league.getStatus().name());
+        }
         dto.setGameSystem(gameSystemMapper.toDto(league.getGameSystem()));
         dto.setOwner(userMapper.toDto(league.getOwner()));
         dto.setStartDate(league.getStartDate());
