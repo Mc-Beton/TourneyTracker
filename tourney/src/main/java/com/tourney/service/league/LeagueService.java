@@ -214,7 +214,7 @@ public class LeagueService {
     public Page<LeagueMatchDTO> getLeagueMatches(Long leagueId, Pageable pageable) {
         League league = leagueRepository.findById(leagueId)
                 .orElseThrow(() -> new IllegalArgumentException("League not found"));
-        return leagueMatchRepository.findByLeagueAndStatus(league, LeagueApprovalStatus.APPROVED, pageable)
+        return leagueMatchRepository.findByLeague(league, pageable)
                 .map(leagueMatchMapper::toDto);
     }
 
