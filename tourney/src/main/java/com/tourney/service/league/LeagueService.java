@@ -474,7 +474,7 @@ public class LeagueService {
     }
 
     @Transactional
-    public void createChallenge(Long leagueId, Long challengerId, Long challengedId) {
+    public void createChallenge(Long leagueId, Long challengerId, CreateChallengeDTO dto) {
         League league = leagueRepository.findById(leagueId)
                 .orElseThrow(() -> new IllegalArgumentException("League not found"));
 
@@ -484,7 +484,7 @@ public class LeagueService {
 
         User challenger = userRepository.findById(challengerId)
                 .orElseThrow(() -> new IllegalArgumentException("Challenger not found"));
-        User challenged = userRepository.findById(challengedId)
+        User challenged = userRepository.findById(dto.getOpponentId())
                 .orElseThrow(() -> new IllegalArgumentException("Challenged user not found"));
 
         // Check if both are members
@@ -498,6 +498,8 @@ public class LeagueService {
                 .challenger(challenger)
                 .challenged(challenged)
                 .status(LeagueApprovalStatus.PENDING)
+                .scheduledTime(dto.getScheduledTime())
+                .message(dto.getMessage())
                 .createdDate(LocalDateTime.now())
                 .build();
         

@@ -41,6 +41,12 @@ public class LeagueChallenge {
     @JoinColumn(name = "match_id")
     private Match match;
 
+    @Column(name = "scheduled_time")
+    private LocalDateTime scheduledTime;
+
+    @Column(columnDefinition = "TEXT")
+    private String message;
+
     @Column(name = "created_date", nullable = false)
     @Builder.Default
     private LocalDateTime createdDate = LocalDateTime.now();

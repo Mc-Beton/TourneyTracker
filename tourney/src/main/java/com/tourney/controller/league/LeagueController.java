@@ -165,10 +165,10 @@ public class LeagueController {
     }
 
     @PostMapping("/{id}/challenges")
-    public ResponseEntity<Void> createChallenge(@PathVariable Long id, @RequestParam Long challengedId,
+    public ResponseEntity<Void> createChallenge(@PathVariable Long id, @RequestBody com.tourney.dto.league.CreateChallengeDTO dto,
                                                 @AuthenticationPrincipal UserPrincipal userPrincipal) {
         User user = getUser(userPrincipal);
-        leagueService.createChallenge(id, user.getId(), challengedId);
+        leagueService.createChallenge(id, user.getId(), dto);
         return ResponseEntity.ok().build();
     }
 
