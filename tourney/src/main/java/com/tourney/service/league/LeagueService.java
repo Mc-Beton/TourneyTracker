@@ -298,16 +298,29 @@ public class LeagueService {
              throw new IllegalArgumentException("Match is not completed");
         }
 
-        if (leagueMatchRepository.findByLeagueAndMatch(league, singleMatch).isPresent()) {
-             throw new IllegalArgumentException("Match already submitted to this league");
+        Optional<LeagueMatch> existingMatch = leagueMatchRepository.findByLeagueAndMatch(league, singleMatch);
+        LeagueMatch leagueMatch;
+
+        if (existingMatch.isPresent()) {
+            leagueMatch = existingMatch.get();
+            if (leagueMatch.getProcessedAt() != null) {
+                throw new IllegalArgumentException("Match already submitted and processed");
+            }
+            // Update submitter to the person actually submitting the result
+            leagueMatch.setSubmittedBy(submittor);
+            
+            // If league is auto-accept, ensure status is APPROVED to trigger processing
+            if (league.isAutoAcceptGames()) {
+                leagueMatch.setStatus(LeagueApprovalStatus.APPROVED);
+            }
+        } else {
+            leagueMatch = LeagueMatch.builder()
+                  .league(league)
+                  .match(singleMatch)
+                  .submittedBy(submittor)
+                  .status(league.isAutoAcceptGames() ? LeagueApprovalStatus.APPROVED : LeagueApprovalStatus.PENDING)
+                  .build();
         }
-        
-        LeagueMatch leagueMatch = LeagueMatch.builder()
-              .league(league)
-              .match(singleMatch)
-              .submittedBy(submittor)
-              .status(league.isAutoAcceptGames() ? LeagueApprovalStatus.APPROVED : LeagueApprovalStatus.PENDING)
-              .build();
               
         leagueMatch = leagueMatchRepository.save(leagueMatch);
         
@@ -543,6 +556,15 @@ public class LeagueService {
             
             // Link match to challenge
             challenge.setMatch(match);
+
+            // Create placeholder LeagueMatch so it appears in league schedule
+            LeagueMatch leagueMatch = LeagueMatch.builder()
+                    .league(challenge.getLeague())
+                    .match(match)
+                    .submittedBy(challenge.getChallenged())
+                    .status(LeagueApprovalStatus.PENDING)
+                    .build();
+            leagueMatchRepository.save(leagueMatch);
             
         } else {
             challenge.setStatus(LeagueApprovalStatus.REJECTED);
