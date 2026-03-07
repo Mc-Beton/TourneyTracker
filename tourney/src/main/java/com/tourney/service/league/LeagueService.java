@@ -496,6 +496,13 @@ public class LeagueService {
             if (memberOpt.isPresent()) {
                 LeagueMember member = memberOpt.get();
                 
+                // Only award points to APPROVED league members
+                if (member.getStatus() != LeagueMemberStatus.APPROVED) {
+                    log.debug("Skipping points for user {} - not an approved league member (status: {})", 
+                        user.getId(), member.getStatus());
+                    continue;
+                }
+                
                 // Base participation points
                 int pointsToAdd = league.getPointsParticipation();
                 
@@ -511,6 +518,8 @@ public class LeagueService {
                 }
                 
                 leagueMemberRepository.save(member);
+                log.info("Awarded {} points to user {} in league {} (rank: {})", 
+                    pointsToAdd, user.getId(), league.getId(), rank);
             }
         }
     }
