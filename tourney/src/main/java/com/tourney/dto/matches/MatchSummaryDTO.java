@@ -1,5 +1,6 @@
 package com.tourney.dto.matches;
 
+import com.tourney.domain.games.MatchStatus;
 import com.tourney.domain.scores.ScoreType;
 import com.tourney.dto.rounds.RoundTableRowDTO;
 import lombok.Builder;
@@ -28,6 +29,8 @@ public class MatchSummaryDTO {
 
     private LocalDateTime startTime;
     private LocalDateTime endTime;
+
+    private MatchStatus status;
 
     private boolean ready;
     private boolean opponentReady;

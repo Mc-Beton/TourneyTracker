@@ -400,6 +400,7 @@ public class SingleMatchService {
                 .armyPower(armyPower)
                 .startTime(match.getStartTime())
                 .endTime(match.getGameEndTime())
+                .status(match.getStatus())
                 .ready(ready)
                 .opponentReady(opponentReady)
                 .rounds(roundRows)
