@@ -20,7 +20,7 @@ public class MatchResult {
     private LocalDateTime submissionTime;
     private Long winnerId;
 
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @JoinTable(
         name = "match_result_player_scores",
         joinColumns = @JoinColumn(name = "match_result_id"),

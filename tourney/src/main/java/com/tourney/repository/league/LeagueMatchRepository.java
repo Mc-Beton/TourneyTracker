@@ -20,26 +20,26 @@ public interface LeagueMatchRepository extends JpaRepository<LeagueMatch, Long> 
     Page<LeagueMatch> findByLeagueAndMatchStatus(League league, MatchStatus status, Pageable pageable);
     Page<LeagueMatch> findByMatchStatus(MatchStatus status, Pageable pageable);
     
-    @Query("SELECT lm FROM LeagueMatch lm " +
+    @Query(value = "SELECT DISTINCT lm FROM LeagueMatch lm " +
            "LEFT JOIN FETCH lm.match m " +
            "LEFT JOIN FETCH m.matchResult mr " +
-           "LEFT JOIN FETCH mr.playerScores " +
            "LEFT JOIN FETCH m.player1 " +
            "LEFT JOIN FETCH m.player2 " +
            "LEFT JOIN FETCH m.details " +
            "LEFT JOIN FETCH lm.submittedBy " +
-           "WHERE lm.league = :league")
+           "WHERE lm.league = :league",
+           countQuery = "SELECT COUNT(lm) FROM LeagueMatch lm WHERE lm.league = :league")
     Page<LeagueMatch> findByLeagueWithMatchData(@Param("league") League league, Pageable pageable);
     
-    @Query("SELECT lm FROM LeagueMatch lm " +
+    @Query(value = "SELECT DISTINCT lm FROM LeagueMatch lm " +
            "LEFT JOIN FETCH lm.match m " +
            "LEFT JOIN FETCH m.matchResult mr " +
-           "LEFT JOIN FETCH mr.playerScores " +
            "LEFT JOIN FETCH m.player1 " +
            "LEFT JOIN FETCH m.player2 " +
            "LEFT JOIN FETCH m.details " +
            "LEFT JOIN FETCH lm.submittedBy " +
-           "WHERE lm.league = :league AND m.status = :status")
+           "WHERE lm.league = :league AND m.status = :status",
+           countQuery = "SELECT COUNT(lm) FROM LeagueMatch lm LEFT JOIN lm.match m WHERE lm.league = :league AND m.status = :status")
     Page<LeagueMatch> findByLeagueAndMatchStatusWithData(@Param("league") League league, @Param("status") MatchStatus status, Pageable pageable);
     
     Page<LeagueMatch> findByLeague(League league, Pageable pageable);
