@@ -3,6 +3,7 @@ package com.tourney.domain.league;
 import com.common.domain.User;
 import com.tourney.domain.games.Match;
 import com.tourney.domain.games.SingleMatch;
+import com.tourney.domain.games.MatchStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -33,7 +34,9 @@ public class LeagueMatch {
     @JoinColumn(name = "submitted_by", nullable = false)
     private User submittedBy;
 
-    // Status is now handled by the Match entity (MatchStatus)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private MatchStatus status;
 
     @Column(name = "rejection_reason")
     private String rejectionReason;

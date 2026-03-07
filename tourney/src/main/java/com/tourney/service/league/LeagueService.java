@@ -329,13 +329,13 @@ public class LeagueService {
             // Update submitter to the person actually submitting the result
             leagueMatch.setSubmittedBy(submittor);
             
-            // Status is now handled by Match entity
+            // Status synced from Match entity
         } else {
             leagueMatch = LeagueMatch.builder()
                   .league(league)
                   .match(singleMatch)
                   .submittedBy(submittor)
-                  // Status removed
+                  .status(singleMatch.getStatus())
                   .build();
         }
               
@@ -592,6 +592,7 @@ public class LeagueService {
                     .league(challenge.getLeague())
                     .match(match)
                     .submittedBy(challenge.getChallenged())
+                    .status(MatchStatus.SCHEDULED)
                     .build();
             leagueMatchRepository.save(leagueMatch);
             
