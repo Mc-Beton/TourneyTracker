@@ -1,6 +1,5 @@
 package com.tourney.mapper.league;
 
-import com.tourney.domain.league.LeagueTournament;
 import com.tourney.domain.tournament.Tournament;
 import com.tourney.dto.league.LeagueTournamentDTO;
 import com.tourney.mapper.tournament.TournamentMapper;
@@ -20,21 +19,8 @@ public class LeagueTournamentMapper {
         this.tournamentMapper = tournamentMapper;
     }
 
-    public LeagueTournamentDTO toDto(LeagueTournament leagueTournament) {
-        if (leagueTournament == null) {
-            return null;
-        }
-        LeagueTournamentDTO dto = new LeagueTournamentDTO();
-        dto.setId(leagueTournament.getId());
-        dto.setLeagueId(leagueTournament.getLeague().getId());
-        dto.setTournament(tournamentMapper.toDto(leagueTournament.getTournament()));
-        dto.setSubmittedBy(userMapper.toDto(leagueTournament.getSubmittedBy()));
-        dto.setStatus(leagueTournament.getTournament().getStatus());
-        dto.setSubmitDate(leagueTournament.getSubmittedAt());
-        dto.setProcessedDate(leagueTournament.getProcessedAt());
-        dto.setRejectionReason(leagueTournament.getRejectionReason());
-        return dto;
-    }
+    // Old method removed - LeagueTournament entity is deprecated
+    // Use toTournamentDto(Tournament) instead
     
     /**
      * Map Tournament directly to LeagueTournamentDTO (new relationship model)
