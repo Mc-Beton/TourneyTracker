@@ -11,7 +11,8 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
-@Repository
+// @Repository // Commented out - deprecated, using Tournament.league instead
+@Deprecated // Replaced by TournamentRepository with Tournament.league relationship
 public interface LeagueTournamentRepository extends JpaRepository<LeagueTournament, Long> {
     
     Optional<LeagueTournament> findByLeagueAndTournament(League league, Tournament tournament);

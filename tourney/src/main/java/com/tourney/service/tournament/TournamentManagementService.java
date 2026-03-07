@@ -8,6 +8,8 @@ import com.tourney.domain.tournament.Tournament;
 import com.tourney.domain.tournament.TournamentRound;
 import com.tourney.domain.tournament.TournamentRoundDefinition;
 import com.tourney.domain.tournament.TournamentScoring;
+import com.tourney.domain.league.League;
+import com.tourney.event.TournamentCompletedEvent;
 import com.common.domain.User;
 import com.tourney.dto.tournament.CreateTournamentDTO;
 import com.tourney.dto.tournament.TournamentStatus;
@@ -15,8 +17,10 @@ import com.tourney.dto.tournament.UpdateTournamentDTO;
 import com.tourney.repository.systems.GameSystemRepository;
 import com.tourney.repository.tournament.TournamentRepository;
 import com.tourney.repository.user.UserRepository;
+import com.tourney.repository.league.LeagueRepository;
 import com.tourney.service.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,7 +36,9 @@ public class TournamentManagementService {
     private final TournamentRepository tournamentRepository;
     private final UserRepository userRepository;
     private final GameSystemRepository gameSystemRepository;
+    private final LeagueRepository leagueRepository;
     private final NotificationService notificationService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public Tournament createTournament(CreateTournamentDTO dto, Long organizerId) {
         validateTournamentData(dto);
@@ -61,6 +67,14 @@ public class TournamentManagementService {
         tournament.setVenue(dto.getVenue());
         tournament.setArmyPointsLimit(dto.getArmyPointsLimit());
         tournament.setStatus(TournamentStatus.DRAFT);
+        
+        // Set league if provided
+        if (dto.getLeagueId() != null) {
+            League league = leagueRepository.findById(dto.getLeagueId())
+                    .orElseThrow(() -> new RuntimeException("Nie znaleziono ligi o ID: " + dto.getLeagueId()));
+            tournament.setLeague(league);
+        }
+        
         tournament.setRounds(createInitialRounds(tournament));
 
         // Tworzenie i konfiguracja systemu punktacji
@@ -428,6 +442,11 @@ public class TournamentManagementService {
                     )
                 );
 
-        return tournamentRepository.save(tournament);
+        Tournament savedTournament = tournamentRepository.save(tournament);
+        
+        // Publish event to trigger automatic league points processing
+        eventPublisher.publishEvent(new TournamentCompletedEvent(this, tournamentId));
+        
+        return savedTournament;
     }
 }

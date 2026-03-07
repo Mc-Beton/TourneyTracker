@@ -7,13 +7,14 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "league_tournaments")
+// @Entity // Commented out - using direct Tournament.league relationship instead
+// @Table(name = "league_tournaments") // Table dropped in V14 migration
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Deprecated // Replaced by Tournament.league relationship
 public class LeagueTournament {
 
     @Id

@@ -1,7 +1,10 @@
 package com.tourney.repository.tournament;
 
 import com.tourney.domain.tournament.Tournament;
+import com.tourney.domain.league.League;
 import com.tourney.dto.tournament.TournamentStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -27,4 +30,6 @@ public interface TournamentRepository extends JpaRepository<Tournament, Long> {
     List<Tournament> findByStatusIn(Collection<TournamentStatus> statuses);
 
     List<Tournament> findByOrganizerId(Long organizerId);
+    
+    Page<Tournament> findByLeague(League league, Pageable pageable);
 }

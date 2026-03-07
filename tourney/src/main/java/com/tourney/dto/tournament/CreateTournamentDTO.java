@@ -64,4 +64,7 @@ public class CreateTournamentDTO {
     private Integer pointsForWin;
     private Integer pointsForDraw;
     private Integer pointsForLoss;
+    
+    // Opcjonalna liga, do której należy turniej
+    private Long leagueId;
 }

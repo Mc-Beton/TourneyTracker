@@ -77,6 +77,15 @@ public class LeagueController {
         return ResponseEntity.ok(leagueService.getLeagueTournaments(id, pageable));
     }
 
+    @PostMapping("/{id}/tournaments/{tournamentId}/process-points")
+    public ResponseEntity<Void> processTournamentPoints(@PathVariable Long id,
+                                                        @PathVariable Long tournamentId,
+                                                        @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        User user = getUser(userPrincipal);
+        leagueService.processTournamentPoints(id, tournamentId, user);
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/{id}/matches/pending")
     public ResponseEntity<Page<LeagueMatchDTO>> getPendingMatches(@PathVariable Long id, Pageable pageable) {
         return ResponseEntity.ok(leagueService.getPendingMatches(id, pageable));

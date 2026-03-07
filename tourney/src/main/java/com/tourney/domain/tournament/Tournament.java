@@ -69,6 +69,10 @@ public class Tournament {
     @ManyToOne
     @JoinColumn(name = "organizer_id")
     private User organizer;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "league_id")
+    private com.tourney.domain.league.League league;
 
     @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TournamentParticipant> participantLinks = new ArrayList<>();

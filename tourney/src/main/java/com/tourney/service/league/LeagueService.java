@@ -18,7 +18,7 @@ import com.tourney.repository.games.MatchRepository;
 import com.tourney.repository.league.LeagueMatchRepository;
 import com.tourney.repository.league.LeagueMemberRepository;
 import com.tourney.repository.league.LeagueRepository;
-import com.tourney.repository.league.LeagueTournamentRepository;
+// import com.tourney.repository.league.LeagueTournamentRepository; // Deprecated - using Tournament.league instead
 import com.tourney.repository.league.LeagueChallengeRepository;
 import com.tourney.repository.systems.GameSystemRepository;
 import com.tourney.repository.tournament.TournamentRepository;
@@ -46,7 +46,7 @@ public class LeagueService {
     
     private final LeagueRepository leagueRepository;
     private final LeagueMemberRepository leagueMemberRepository;
-    private final LeagueTournamentRepository leagueTournamentRepository;
+    // private final LeagueTournamentRepository leagueTournamentRepository; // Deprecated - using Tournament.league instead
     private final LeagueMatchRepository leagueMatchRepository;
     private final LeagueChallengeRepository leagueChallengeRepository;
     private final GameSystemRepository gameSystemRepository;
@@ -246,8 +246,9 @@ public class LeagueService {
     public Page<LeagueTournamentDTO> getLeagueTournaments(Long leagueId, Pageable pageable) {
         League league = leagueRepository.findById(leagueId)
                 .orElseThrow(() -> new IllegalArgumentException("League not found"));
-        return leagueTournamentRepository.findByLeagueAndTournamentStatus(league, TournamentStatus.COMPLETED, pageable)
-                .map(leagueTournamentMapper::toDto);
+        // Query tournaments directly by league relationship
+        return tournamentRepository.findByLeague(league, pageable)
+                .map(leagueTournamentMapper::toTournamentDto);
     }
     
     @Transactional(readOnly = true)
@@ -258,12 +259,11 @@ public class LeagueService {
                 .map(leagueMatchMapper::toDto);
     }
 
+    @Deprecated // Replaced by direct Tournament.league relationship
     @Transactional(readOnly = true)
     public Page<LeagueTournamentDTO> getPendingTournaments(Long leagueId, Pageable pageable) {
-        League league = leagueRepository.findById(leagueId)
-                .orElseThrow(() -> new IllegalArgumentException("League not found"));
-        return leagueTournamentRepository.findByLeagueAndTournamentStatus(league, TournamentStatus.PENDING, pageable)
-                .map(leagueTournamentMapper::toDto);
+        // TODO: Remove this method - tournament submissions are handled differently now
+        throw new UnsupportedOperationException("Tournament submission workflow has been replaced - tournaments are created with league directly");
     }
 
     @Transactional
@@ -371,38 +371,10 @@ public class LeagueService {
     }
     
     @Transactional
+    @Deprecated // Replaced by direct Tournament.league relationship
     public void submitTournament(Long leagueId, Long tournamentId, User submittor) {
-        League league = leagueRepository.findById(leagueId)
-             .orElseThrow(() -> new IllegalArgumentException("League not found"));
-             
-        Tournament tournament = tournamentRepository.findById(tournamentId)
-             .orElseThrow(() -> new IllegalArgumentException("Tournament not found"));
-             
-        if (tournament.getStatus() != TournamentStatus.COMPLETED) {
-             throw new IllegalArgumentException("Tournament is not completed");
-        }
-        
-        if (leagueTournamentRepository.findByLeagueAndTournament(league, tournament).isPresent()) {
-             throw new IllegalArgumentException("Tournament already submitted to this league");
-        }
-
-        boolean autoAccept = league.isAutoAcceptTournaments();
-        if (!autoAccept) {
-            tournament.setStatus(TournamentStatus.PENDING);
-            tournamentRepository.save(tournament);
-        }
-
-        LeagueTournament leagueTournament = LeagueTournament.builder()
-              .league(league)
-              .tournament(tournament)
-              .submittedBy(submittor)
-              .build();
-              
-        leagueTournament = leagueTournamentRepository.save(leagueTournament);
-        
-        if (autoAccept) { // Previously COMPLETED
-            processTournamentPoints(leagueTournament);
-        }
+        // TODO: Remove this method - tournaments are now created with league_id directly
+        throw new UnsupportedOperationException("Tournament submission workflow has been replaced - set league during tournament creation");
     }
 
     @Transactional
@@ -432,23 +404,10 @@ public class LeagueService {
     }
     
     @Transactional
+    @Deprecated // Replaced by direct Tournament.league relationship
     public void approveTournament(Long leagueTournamentId, User approver) {
-        LeagueTournament leagueTournament = leagueTournamentRepository.findById(leagueTournamentId)
-             .orElseThrow(() -> new IllegalArgumentException("League Tournament request not found"));
-             
-        if (!leagueTournament.getLeague().getOwner().getId().equals(approver.getId())) {
-             throw new IllegalArgumentException("Only owner can approve tournaments");
-        }
-
-        if (leagueTournament.getTournament().getStatus() != TournamentStatus.PENDING) {
-             throw new IllegalArgumentException("Request is not pending");
-        }
-        
-        Tournament tournament = leagueTournament.getTournament();
-        tournament.setStatus(TournamentStatus.COMPLETED);
-        tournamentRepository.save(tournament);
-        
-        processTournamentPoints(leagueTournament);
+        // TODO: Remove this method - tournaments are now created with league_id directly, no approval needed
+        throw new UnsupportedOperationException("Tournament approval workflow has been replaced - tournaments are accepted at creation");
     }
 
     private void processMatchPoints(LeagueMatch leagueMatch) {
@@ -503,43 +462,75 @@ public class LeagueService {
         leagueMemberRepository.save(member);
     }
 
-    private void processTournamentPoints(LeagueTournament leagueTournament) {
-        if (leagueTournament.getProcessedAt() != null) return;
+    /**
+     * Process tournament points for league members
+     * Called when a tournament with a league_id is completed
+     */
+    @Transactional
+    public void processTournamentPoints(Long tournamentId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new IllegalArgumentException("Tournament not found"));
         
-        League league = leagueTournament.getLeague();
-        Tournament tournament = leagueTournament.getTournament();
+        if (tournament.getLeague() == null) {
+            throw new IllegalArgumentException("Tournament is not associated with a league");
+        }
         
+        if (tournament.getStatus() != TournamentStatus.COMPLETED) {
+            throw new IllegalArgumentException("Tournament is not completed");
+        }
+        
+        League league = tournament.getLeague();
+        
+        // Calculate participant stats and rankings
         List<ParticipantStatsDTO> stats = tournamentStatsService.calculateParticipantStats(tournament);
         
         int totalParticipants = stats.size();
         for (int i = 0; i < totalParticipants; i++) {
-             ParticipantStatsDTO stat = stats.get(i);
-             int rank = i + 1;
-             
-             User user = userRepository.findById(stat.getUserId()).orElse(null);
-             if (user == null) continue;
+            ParticipantStatsDTO stat = stats.get(i);
+            int rank = i + 1;
+            
+            User user = userRepository.findById(stat.getUserId()).orElse(null);
+            if (user == null) continue;
+            
+            Optional<LeagueMember> memberOpt = leagueMemberRepository.findByLeagueAndUser(league, user);
+            if (memberOpt.isPresent()) {
+                LeagueMember member = memberOpt.get();
+                
+                // Base participation points
+                int pointsToAdd = league.getPointsParticipation();
+                
+                // Ranking-based points (better finish = more points)
+                int rankPoints = (totalParticipants - rank + 1) * league.getPointsPerParticipant();
+                pointsToAdd += rankPoints;
+                
+                member.setPoints(member.getPoints() + pointsToAdd);
+                member.setTournamentsPlayed(member.getTournamentsPlayed() + 1);
+                
+                if (rank == 1) {
+                    member.setTournamentWins(member.getTournamentWins() + 1);
+                }
+                
+                leagueMemberRepository.save(member);
+            }
+        }
+    }
 
-             Optional<LeagueMember> memberOpt = leagueMemberRepository.findByLeagueAndUser(league, user);
-             if (memberOpt.isPresent()) {
-                 LeagueMember member = memberOpt.get();
-                 
-                 int pointsToAdd = league.getPointsParticipation();
-                 int rankPoints = (totalParticipants - rank + 1) * league.getPointsPerParticipant();
-                 pointsToAdd += rankPoints;
-                 
-                 member.setPoints(member.getPoints() + pointsToAdd);
-                 member.setTournamentsPlayed(member.getTournamentsPlayed() + 1);
-                 
-                 if (rank == 1) {
-                     member.setTournamentWins(member.getTournamentWins() + 1);
-                 }
-                 
-                 leagueMemberRepository.save(member);
-             }
+    /**
+     * Process tournament points with authorization
+     * Called from the REST endpoint
+     */
+    @Transactional
+    public void processTournamentPoints(Long leagueId, Long tournamentId, User user) {
+        League league = leagueRepository.findById(leagueId)
+                .orElseThrow(() -> new IllegalArgumentException("League not found"));
+        
+        // Only league owner can manually process tournament points
+        if (!league.getOwner().getId().equals(user.getId())) {
+            throw new IllegalArgumentException("Only the league owner can process tournament points");
         }
         
-        leagueTournament.setProcessedAt(LocalDateTime.now());
-        leagueTournamentRepository.save(leagueTournament);
+        // Delegate to the main processing method
+        processTournamentPoints(tournamentId);
     }
 
     @Transactional
