@@ -268,6 +268,11 @@ public class TournamentRoundService {
             );
 
             round.getMatches().forEach(match -> {
+                // Skip BYE matches - they're already completed
+                if (match.getPlayer2() == null && match.getStatus() == MatchStatus.COMPLETED) {
+                    return;
+                }
+                
                 match.setStartTime(now);
                 // gameEndTime is set only when match actually finishes, not at start
                 match.setResultSubmissionDeadline(deadline);

@@ -354,6 +354,11 @@ public class TournamentManagementService {
             );
         }
 
+        // Walidacja: nie można zmienić statusu turnieju który jest w trakcie
+        if (tournament.getStatus() == TournamentStatus.IN_PROGRESS) {
+            throw new RuntimeException("Nie można zmienić statusu turnieju który jest w trakcie");
+        }
+
         // Minimalna logika przełączania statusu (możesz ją rozbudować o walidacje)
         tournament.setStatus(active ? TournamentStatus.ACTIVE : TournamentStatus.DRAFT);
 

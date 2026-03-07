@@ -611,10 +611,11 @@ public class SubsequentRoundPairingService {
         // Dodaj PlayerScore do MatchResult
         matchResult.addPlayerResult(player.getId(), playerScore);
         
-        // Przypisz MatchResult do meczu
+        // Przypisz MatchResult do meczu i oznacz jako zakończony
         byeMatch.setMatchResult(matchResult);
         byeMatch.setCompleted(true);
         byeMatch.setResultsConfirmed(true);
         byeMatch.setPlayer1Confirmed(true);
+        byeMatch.setStatus(MatchStatus.COMPLETED);
     }
 }

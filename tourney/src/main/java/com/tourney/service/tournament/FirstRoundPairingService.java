@@ -1,9 +1,14 @@
 package com.tourney.service.tournament;
 
 import com.tourney.domain.games.Match;
+import com.tourney.domain.games.MatchResult;
 import com.tourney.domain.games.MatchRound;
+import com.tourney.domain.games.MatchStatus;
+import com.tourney.domain.games.PlayerScore;
+import com.tourney.domain.games.RoundScore;
 import com.tourney.domain.games.TournamentMatch;
 import com.tourney.domain.participant.TournamentParticipant;
+import com.tourney.domain.scores.ScoreType;
 import com.tourney.domain.tournament.PairingAlgorithmType;
 import com.tourney.domain.tournament.PlayerLevelPairingStrategy;
 import com.tourney.domain.tournament.Tournament;
@@ -37,6 +42,7 @@ public class FirstRoundPairingService {
     private final TournamentRoundDefinitionRepository roundDefinitionRepository;
     private final TournamentChallengeRepository challengeRepository;
     private final TeamMemberRepository teamMemberRepository;
+    private final com.tourney.repository.scores.ScoreRepository scoreRepository;
 
     public List<Match> createFirstRoundPairings(Long tournamentId) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
@@ -128,7 +134,53 @@ public class FirstRoundPairingService {
         tournament.setPhase(TournamentPhase.PAIRINGS_READY);
         tournamentRepository.save(tournament);
         
-        return matchRepository.saveAll(matches);
+        List<Match> savedMatches = matchRepository.saveAll(matches);
+        
+        // Zapisz punkty za BYE do repozytorium Score, aby były wliczane do statystyk
+        saveByeScores(savedMatches);
+        
+        return savedMatches;
+    }
+    
+    private void saveByeScores(List<Match> matches) {
+        for (Match match : matches) {
+            // Sprawdź czy to BYE (tylko gracz 1, brak gracza 2, i posiada wynik)
+            if (match.getPlayer1() != null && match.getPlayer2() == null && match.getMatchResult() != null) {
+                processByeMatchScores(match);
+            }
+        }
+    }
+
+    private void processByeMatchScores(Match match) {
+        MatchResult result = match.getMatchResult();
+        Long playerId = match.getPlayer1().getId();
+        PlayerScore playerScore = result.getPlayerResult(playerId);
+
+        if (playerScore == null) return;
+
+        // Pobierz rundy meczu
+        List<MatchRound> matchRounds = match.getRounds();
+        List<RoundScore> roundScores = playerScore.getRoundScores();
+
+        // Zakładamy, że kolejność i liczba się zgadzają (bo tak tworzy createByeMatch)
+        for (int i = 0; i < Math.min(matchRounds.size(), roundScores.size()); i++) {
+            MatchRound matchRound = matchRounds.get(i);
+            RoundScore roundScore = roundScores.get(i);
+
+            for (Map.Entry<ScoreType, Double> entry : roundScore.getScores().entrySet()) {
+                com.tourney.domain.scores.Score score = new com.tourney.domain.scores.Score();
+                score.setMatchRound(matchRound);
+                score.setSide(com.tourney.domain.scores.MatchSide.PLAYER1);
+                score.setScoreType(entry.getKey());
+                // Konwersja Double na Long
+                score.setScore(entry.getValue().longValue());
+                score.setUser(match.getPlayer1());
+                score.setEnteredAt(LocalDateTime.now());
+                score.setEnteredByUserId(playerId);
+
+                scoreRepository.save(score);
+            }
+        }
     }
     
     private List<Match> createPairingsWithConstraints(List<User> players, TournamentRound round, int startTableNumber, 
@@ -347,7 +399,64 @@ public class FirstRoundPairingService {
             match.getRounds().add(matchRound);
         }
         
+        // Automatyczne przypisanie punktów za BYE na podstawie definicji rundy
+        assignByePoints(match, player, round, numberOfRounds);
+        
         return match;
+    }
+    
+    private void assignByePoints(TournamentMatch byeMatch, User player, TournamentRound round, int numberOfRounds) {
+        // Pobierz definicję rundy
+        Optional<TournamentRoundDefinition> definitionOpt = roundDefinitionRepository
+                .findByTournamentIdAndRoundNumber(round.getTournament().getId(), round.getRoundNumber());
+        
+        if (definitionOpt.isEmpty()) {
+            return; // Brak definicji - nie przypisujemy punktów
+        }
+        
+        TournamentRoundDefinition definition = definitionOpt.get();
+        Integer byeSmallPoints = definition.getByeSmallPoints();
+        Integer byeLargePoints = definition.getByeLargePoints();
+        
+        if (byeSmallPoints == null && byeLargePoints == null) {
+            return; // Brak zdefiniowanych punktów BYE
+        }
+        
+        // Utwórz MatchResult
+        MatchResult matchResult = new MatchResult();
+        matchResult.setSubmittedById(player.getId());
+        matchResult.setSubmissionTime(LocalDateTime.now());
+        matchResult.setWinnerId(player.getId()); // Gracz z BYE automatycznie wygrywa
+        
+        // Utwórz PlayerScore dla gracza
+        PlayerScore playerScore = new PlayerScore();
+        
+        // Dla każdej rundy meczu dodaj punkty BYE
+        for (int i = 0; i < numberOfRounds; i++) {
+            RoundScore roundScore = new RoundScore();
+            
+            // Małe punkty (Primary points) -> MAIN_SCORE
+            if (byeSmallPoints != null && byeSmallPoints > 0) {
+                roundScore.getScores().put(ScoreType.MAIN_SCORE, byeSmallPoints.doubleValue());
+            }
+            
+            // Duże punkty (Game points) -> SECONDARY_SCORE
+            if (byeLargePoints != null && byeLargePoints > 0) {
+                roundScore.getScores().put(ScoreType.SECONDARY_SCORE, byeLargePoints.doubleValue());
+            }
+            
+            playerScore.getRoundScores().add(roundScore);
+        }
+        
+        // Dodaj PlayerScore do MatchResult
+        matchResult.addPlayerResult(player.getId(), playerScore);
+        
+        // Przypisz MatchResult do meczu i oznacz jako zakończony
+        byeMatch.setMatchResult(matchResult);
+        byeMatch.setCompleted(true);
+        byeMatch.setResultsConfirmed(true);
+        byeMatch.setPlayer1Confirmed(true);
+        byeMatch.setStatus(MatchStatus.COMPLETED);
     }
 
     /**
