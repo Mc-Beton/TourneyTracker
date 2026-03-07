@@ -214,7 +214,7 @@ public class LeagueService {
     public Page<LeagueMatchDTO> getLeagueMatches(Long leagueId, Pageable pageable) {
         League league = leagueRepository.findById(leagueId)
                 .orElseThrow(() -> new IllegalArgumentException("League not found"));
-        return leagueMatchRepository.findByLeague(league, pageable)
+        return leagueMatchRepository.findByLeagueWithMatchData(league, pageable)
                 .map(leagueMatchMapper::toDto);
     }
 
@@ -230,7 +230,7 @@ public class LeagueService {
     public Page<LeagueMatchDTO> getPendingMatches(Long leagueId, Pageable pageable) {
         League league = leagueRepository.findById(leagueId)
                 .orElseThrow(() -> new IllegalArgumentException("League not found"));
-        return leagueMatchRepository.findByLeagueAndMatchStatus(league, MatchStatus.PENDING, pageable)
+        return leagueMatchRepository.findByLeagueAndMatchStatusWithData(league, MatchStatus.PENDING, pageable)
                 .map(leagueMatchMapper::toDto);
     }
 
