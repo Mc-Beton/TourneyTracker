@@ -453,7 +453,7 @@ public class LeagueService {
         
         LeagueMember member = memberOpt.get();
         
-        int pointsToAdd = league.getPointsParticipation();
+        int pointsToAdd = 0;
         
         if (winnerId == null) {
             // Draw
