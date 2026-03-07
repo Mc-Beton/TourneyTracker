@@ -68,4 +68,23 @@ public class SingleMatchController {
     ) {
         return ResponseEntity.ok(singleMatchService.finishMatch(matchId, currentUser.getId()));
     }
+
+    @PutMapping("/single/{matchId}")
+    public ResponseEntity<SingleMatchResponseDTO> updateSingleMatch(
+            @PathVariable Long matchId,
+            @Valid @RequestBody CreateSingleMatchDTO dto,
+            @AuthenticationPrincipal UserPrincipal currentUser
+    ) {
+        SingleMatch match = singleMatchService.updateSingleMatch(matchId, dto, currentUser.getId());
+        return ResponseEntity.ok(singleMatchMapper.toDto(match));
+    }
+
+    @DeleteMapping("/single/{matchId}")
+    public ResponseEntity<Void> deleteSingleMatch(
+            @PathVariable Long matchId,
+            @AuthenticationPrincipal UserPrincipal currentUser
+    ) {
+        singleMatchService.deleteSingleMatch(matchId, currentUser.getId());
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -540,4 +540,88 @@ public class SingleMatchService {
         return v.intValue();
     }
 
+    @Transactional
+    public SingleMatch updateSingleMatch(Long matchId, CreateSingleMatchDTO dto, Long currentUserId) {
+        SingleMatch match = matchRepository.findById(matchId)
+                .map(m -> m instanceof SingleMatch ? (SingleMatch) m : null)
+                .orElseThrow(() -> new EntityNotFoundException("SingleMatch not found with id: " + matchId));
+
+        // Only creator (player1) can update
+        if (match.getPlayer1() == null || !match.getPlayer1().getId().equals(currentUserId)) {
+            throw new IllegalStateException("Only match creator can update the match");
+        }
+
+        // Only matches in SCHEDULED status can be updated
+        if (match.getStatus() != MatchStatus.SCHEDULED) {
+            throw new IllegalStateException("Cannot update match that is not in SCHEDULED status");
+        }
+
+        // Update match details
+        MatchDetails details = match.getDetails();
+        if (details == null) {
+            details = new MatchDetails();
+            details.setMatch(match);
+        }
+
+        // Update fields that are allowed to be edited
+        details.setMatchName(StringUtils.hasText(dto.getMatchName()) ? dto.getMatchName().trim() : null);
+        
+        // Update mission, deployment, army power
+        if (dto.getPrimaryMissionId() != null) {
+            PrimaryMission primaryMission = primaryMissionRepository.findById(dto.getPrimaryMissionId())
+                    .orElseThrow(() -> new EntityNotFoundException("PrimaryMission not found"));
+            details.setPrimaryMission(primaryMission);
+        } else {
+            details.setPrimaryMission(null);
+        }
+
+        if (dto.getDeploymentId() != null) {
+            Deployment deployment = deploymentRepository.findById(dto.getDeploymentId())
+                    .orElseThrow(() -> new EntityNotFoundException("Deployment not found"));
+            details.setDeployment(deployment);
+        } else {
+            details.setDeployment(null);
+        }
+
+        details.setArmyPower(dto.getArmyPower());
+        details.setFirstPlayerId(dto.getFirstPlayerId());
+
+        if (dto.getMode() != null) {
+            details.setMode(dto.getMode());
+        }
+
+        matchDetailsRepository.save(details);
+        match.setDetails(details);
+
+        return matchRepository.save(match);
+    }
+
+    @Transactional
+    public void deleteSingleMatch(Long matchId, Long currentUserId) {
+        SingleMatch match = matchRepository.findById(matchId)
+                .map(m -> m instanceof SingleMatch ? (SingleMatch) m : null)
+                .orElseThrow(() -> new EntityNotFoundException("SingleMatch not found with id: " + matchId));
+
+        // Only creator (player1) can delete
+        if (match.getPlayer1() == null || !match.getPlayer1().getId().equals(currentUserId)) {
+            throw new IllegalStateException("Only match creator can delete the match");
+        }
+
+        // Only matches in SCHEDULED status can be deleted
+        if (match.getStatus() != MatchStatus.SCHEDULED) {
+            throw new IllegalStateException("Cannot delete match that is not in SCHEDULED status");
+        }
+
+        // Check if match is part of a league or tournament
+        if (match.getDetails() != null && match.getDetails().getLeagueMatch() != null) {
+            throw new IllegalStateException("Cannot delete match that is part of a league");
+        }
+
+        if (match instanceof TournamentMatch) {
+            throw new IllegalStateException("Cannot delete match that is part of a tournament");
+        }
+
+        matchRepository.delete(match);
+    }
+
 }
