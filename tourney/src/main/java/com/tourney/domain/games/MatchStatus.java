@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 
 public enum MatchStatus {
     PENDING,
+    APPROVED,
     SCHEDULED,
     IN_PROGRESS,
     COMPLETED,
