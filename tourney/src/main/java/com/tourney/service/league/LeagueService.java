@@ -308,6 +308,11 @@ public class LeagueService {
         
         SingleMatch singleMatch = (SingleMatch) match;
         
+        // Validate that completed matches have results
+        if (singleMatch.getStatus() == MatchStatus.COMPLETED && singleMatch.getMatchResult() == null) {
+            throw new IllegalArgumentException("Cannot submit a completed match without results. Please finish the match properly first.");
+        }
+        
         // Removed explicit check for COMPLETED status to allow submitting pending matches for tracking
         // But if it IS completed, we process points immediately.
 
@@ -390,6 +395,12 @@ public class LeagueService {
         }
         
         SingleMatch match = leagueMatch.getMatch();
+        
+        // Validate that the match has results before approving
+        if (match.getMatchResult() == null) {
+            throw new IllegalArgumentException("Cannot approve match without results. Match must be played and finished first.");
+        }
+        
         match.setStatus(MatchStatus.COMPLETED);
         matchRepository.save(match);
         
