@@ -573,6 +573,7 @@ public class LeagueService {
         }
 
         if (accept) {
+            // Challenge is now scheduled
             challenge.setStatus(MatchStatus.SCHEDULED);
             
             // Create Single Match
@@ -584,15 +585,21 @@ public class LeagueService {
             // Note: createSingleMatch takes creatorId (player1), so challenged user becomes player1 (host)
             SingleMatch match = singleMatchService.createSingleMatch(matchDto, userId);
             
+            // If league doesn't auto-accept games, match needs owner approval
+            if (!challenge.getLeague().isAutoAcceptGames()) {
+                match.setStatus(MatchStatus.PENDING);
+                matchRepository.save(match);
+            }
+            
             // Link match to challenge
             challenge.setMatch(match);
 
-            // Create placeholder LeagueMatch so it appears in league schedule
+            // Create LeagueMatch with same status as the match
             LeagueMatch leagueMatch = LeagueMatch.builder()
                     .league(challenge.getLeague())
                     .match(match)
                     .submittedBy(challenge.getChallenged())
-                    .status(MatchStatus.SCHEDULED)
+                    .status(match.getStatus())
                     .build();
             leagueMatchRepository.save(leagueMatch);
             
