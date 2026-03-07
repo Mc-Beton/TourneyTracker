@@ -38,6 +38,7 @@ public class SingleMatchService {
 
     private final MatchRepository matchRepository;
     private final MatchDetailsRepository matchDetailsRepository;
+    private final com.tourney.repository.league.LeagueMatchRepository leagueMatchRepository;
 
     private final UserRepository userRepository;
     private final GameSystemRepository gameSystemRepository;
@@ -612,12 +613,13 @@ public class SingleMatchService {
             throw new IllegalStateException("Cannot delete match that is not in SCHEDULED status");
         }
 
-        // Check if match is part of a league or tournament
-        if (match.getDetails() != null && match.getDetails().getLeagueMatch() != null) {
+        // Check if match is part of a league
+        if (leagueMatchRepository.findByMatch(match).isPresent()) {
             throw new IllegalStateException("Cannot delete match that is part of a league");
         }
 
-        if (match instanceof TournamentMatch) {
+        // SingleMatch should not be a tournament match, but double-check
+        if (match.isTournamentMatch()) {
             throw new IllegalStateException("Cannot delete match that is part of a tournament");
         }
 
