@@ -18,6 +18,8 @@ public interface LeagueMemberRepository extends JpaRepository<LeagueMember, Long
     
     Optional<LeagueMember> findByLeagueAndUser(League league, User user);
     
+    List<LeagueMember> findByLeague(League league);
+    
     List<LeagueMember> findByLeagueOrderByPointsDesc(League league);
     
     Page<LeagueMember> findByLeagueAndStatus(League league, LeagueMemberStatus status, Pageable pageable);

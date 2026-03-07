@@ -129,6 +129,30 @@ public class LeagueService {
             throw new IllegalArgumentException("Only owner can delete league");
         }
 
+        // Can only delete leagues in DRAFT status
+        if (league.getStatus() != LeagueStatus.DRAFT) {
+            throw new IllegalArgumentException("Can only delete leagues in DRAFT status");
+        }
+
+        // Check if there are any matches associated with this league
+        long matchCount = leagueMatchRepository.countByLeague(league);
+        if (matchCount > 0) {
+            throw new IllegalArgumentException("Cannot delete league with existing matches");
+        }
+
+        // Check if only owner is a member
+        List<LeagueMember> members = leagueMemberRepository.findByLeague(league);
+        if (members.size() > 1) {
+            throw new IllegalArgumentException("Cannot delete league with other members. Only owner should be present.");
+        }
+
+        // Remove owner from members first
+        leagueMemberRepository.deleteAll(members);
+        
+        // Delete any pending challenges
+        leagueChallengeRepository.deleteByLeague(league);
+        
+        // Now delete the league
         leagueRepository.delete(league);
     }
 
@@ -170,7 +194,7 @@ public class LeagueService {
 
     @Transactional(readOnly = true)
     public Page<LeagueDTO> listLeagues(Pageable pageable) {
-        return leagueRepository.findAll(pageable).map(leagueMapper::toDto);
+        return leagueRepository.findByStatusNot(LeagueStatus.ARCHIVED, pageable).map(leagueMapper::toDto);
     }
 
     @Transactional(readOnly = true)

@@ -20,6 +20,7 @@ public interface LeagueMatchRepository extends JpaRepository<LeagueMatch, Long> 
     Optional<LeagueMatch> findByMatch(SingleMatch match);
     Page<LeagueMatch> findByLeagueAndMatchStatus(League league, MatchStatus status, Pageable pageable);
     Page<LeagueMatch> findByMatchStatus(MatchStatus status, Pageable pageable);
+    long countByLeague(League league);
     
     @EntityGraph(attributePaths = {"match", "match.matchResult", "match.player1", "match.player2", "match.details", "submittedBy"})
     Page<LeagueMatch> findByLeague(League league, Pageable pageable);

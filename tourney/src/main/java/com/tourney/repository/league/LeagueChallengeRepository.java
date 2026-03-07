@@ -1,5 +1,6 @@
 package com.tourney.repository.league;
 
+import com.tourney.domain.league.League;
 import com.tourney.domain.league.LeagueChallenge;
 import com.tourney.domain.games.MatchStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,4 +13,5 @@ public interface LeagueChallengeRepository extends JpaRepository<LeagueChallenge
 
     List<LeagueChallenge> findByChallengedIdAndStatus(Long challengedId, MatchStatus status);
     List<LeagueChallenge> findByChallengerIdAndStatus(Long challengerId, MatchStatus status);
+    void deleteByLeague(League league);
 }
