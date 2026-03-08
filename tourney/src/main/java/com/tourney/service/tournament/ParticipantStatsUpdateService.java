@@ -5,9 +5,11 @@ import com.tourney.domain.games.TournamentMatch;
 import com.tourney.domain.participant.TournamentParticipant;
 import com.tourney.domain.scores.Score;
 import com.tourney.domain.tournament.Tournament;
+import com.tourney.domain.tournament.TournamentRound;
 import com.tourney.domain.tournament.TournamentScoring;
 import com.tourney.repository.participant.TournamentParticipantRepository;
 import com.tourney.repository.scores.ScoreRepository;
+import com.tourney.repository.TournamentRoundDefinitionRepository;
 import com.tourney.service.TournamentPointsCalculationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,6 +28,7 @@ public class ParticipantStatsUpdateService {
     private final TournamentParticipantRepository participantRepository;
     private final ScoreRepository scoreRepository;
     private final TournamentPointsCalculationService tournamentPointsCalculationService;
+    private final TournamentRoundDefinitionRepository roundDefinitionRepository;
 
     /**
      * Aktualizuje statystyki obu graczy po zakończeniu meczu turnieju
@@ -109,9 +112,33 @@ public class ParticipantStatsUpdateService {
             return;
         }
 
-        // BYE - gracz nie dostaje punktów (organizator może to zmienić w przyszłości)
-        // Zwiększamy tylko matchesPlayed
-        participant.setMatchesPlayed(participant.getMatchesPlayed() + 1);
+        // Pobierz definicję rundy dla punktów BYE
+        TournamentMatch tournamentMatch = (TournamentMatch) match;
+        TournamentRound round = tournamentMatch.getTournamentRound();
+        Integer roundNumber = round.getRoundNumber();
+        
+        var roundDefinitionOpt = roundDefinitionRepository
+                .findByTournamentIdAndRoundNumber(tournament.getId(), roundNumber);
+        
+        if (roundDefinitionOpt.isEmpty()) {
+            // Brak definicji - tylko zwiększamy matchesPlayed
+            participant.setMatchesPlayed(participant.getMatchesPlayed() + 1);
+            participantRepository.save(participant);
+            return;
+        }
+        
+        var roundDefinition = roundDefinitionOpt.get();
+        Integer byeSmallPoints = roundDefinition.getByeSmallPoints();
+        Integer byeLargePoints = roundDefinition.getByeLargePoints();
+        
+        // Oblicz małe punkty (Match Points/SP) z tabeli scores
+        long scorePoints = calculatePlayerScorePoints(match, playerId);
+        
+        // Przypisz punkty bezpośrednio
+        int tournamentPoints = (byeLargePoints != null) ? byeLargePoints : 0;
+        
+        // Dodaj wynik meczu (BYE = automatyczna wygrana)
+        participant.addMatchResult(tournamentPoints, scorePoints, TournamentParticipant.MatchResult.WIN);
         participantRepository.save(participant);
     }
 

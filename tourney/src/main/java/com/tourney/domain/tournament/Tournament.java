@@ -73,6 +73,10 @@ public class Tournament {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "league_id")
     private com.tourney.domain.league.League league;
+    
+    // Czy wyniki turnieju ligowego zostały zatwierdzone i przypisano punkty ligowe
+    @Column(name = "league_points_assigned", columnDefinition = "BOOLEAN DEFAULT FALSE")
+    private Boolean leaguePointsAssigned = false;
 
     @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TournamentParticipant> participantLinks = new ArrayList<>();

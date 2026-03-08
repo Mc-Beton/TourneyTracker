@@ -418,7 +418,7 @@ public class FirstRoundPairingService {
         Integer byeSmallPoints = definition.getByeSmallPoints();
         Integer byeLargePoints = definition.getByeLargePoints();
         
-        if (byeSmallPoints == null && byeLargePoints == null) {
+        if ((byeSmallPoints == null || byeSmallPoints == 0) && (byeLargePoints == null || byeLargePoints == 0)) {
             return; // Brak zdefiniowanych punktów BYE
         }
         
@@ -431,21 +431,20 @@ public class FirstRoundPairingService {
         // Utwórz PlayerScore dla gracza
         PlayerScore playerScore = new PlayerScore();
         
-        // Dla każdej rundy meczu dodaj punkty BYE
-        for (int i = 0; i < numberOfRounds; i++) {
-            RoundScore roundScore = new RoundScore();
-            
-            // Małe punkty (Primary points) -> MAIN_SCORE
-            if (byeSmallPoints != null && byeSmallPoints > 0) {
-                roundScore.getScores().put(ScoreType.MAIN_SCORE, byeSmallPoints.doubleValue());
-            }
-            
-            // Duże punkty (Game points) -> SECONDARY_SCORE
-            if (byeLargePoints != null && byeLargePoints > 0) {
-                roundScore.getScores().put(ScoreType.SECONDARY_SCORE, byeLargePoints.doubleValue());
-            }
-            
-            playerScore.getRoundScores().add(roundScore);
+        // Dodaj punkty BYE TYLKO DO PIERWSZEJ RUNDY (nie mnożyć przez liczbę rund)
+        RoundScore roundScore = new RoundScore();
+        
+        // TYLKO Małe punkty (Match Points / SP) -> MAIN_SCORE
+        // Tournament Points (TP) będą przypisane bezpośrednio w ParticipantStatsUpdateService
+        if (byeSmallPoints != null && byeSmallPoints > 0) {
+            roundScore.getScores().put(ScoreType.MAIN_SCORE, byeSmallPoints.doubleValue());
+        }
+        
+        playerScore.getRoundScores().add(roundScore);
+        
+        // Dla pozostałych rund dodaj puste RoundScore (aby zachować spójność struktury)
+        for (int i = 1; i < numberOfRounds; i++) {
+            playerScore.getRoundScores().add(new RoundScore());
         }
         
         // Dodaj PlayerScore do MatchResult

@@ -150,6 +150,15 @@ public class TournamentController {
         return ResponseEntity.ok(tournamentMapper.toDto(tournament));
     }
 
+    @PostMapping("/{id}/confirm-for-league")
+    public ResponseEntity<TournamentResponseDTO> confirmTournamentForLeague(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal currentUser
+    ) {
+        Tournament tournament = tournamentManagementService.confirmTournamentForLeague(id, currentUser.getId());
+        return ResponseEntity.ok(tournamentMapper.toDto(tournament));
+    }
+
     /**
      * Przelicza statystyki uczestników od nowa dla całego turnieju.
      * Przydatne przy migracji danych lub naprawie błędów w statystykach.

@@ -127,6 +127,7 @@ public class TournamentUserService {
                         .armyListStatus(link.getArmyListStatus())
                         .armyFactionName(link.getArmyFaction() != null ? link.getArmyFaction().getName() : null)
                         .armyName(link.getArmy() != null ? link.getArmy().getName() : null)
+                        .additionalPoints(link.getAdditionalPoints())
                         .build())
                 .toList();
     }
@@ -145,6 +146,7 @@ public class TournamentUserService {
                         .armyListStatus(link.getArmyListStatus())
                         .armyFactionName(link.getArmyFaction() != null ? link.getArmyFaction().getName() : null)
                         .armyName(link.getArmy() != null ? link.getArmy().getName() : null)
+                        .additionalPoints(link.getAdditionalPoints())
                         .build())
                 .toList();
     }

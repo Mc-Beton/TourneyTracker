@@ -48,6 +48,8 @@ public class TournamentMapper {
                 .confirmedParticipantsCount(confirmedCount)
                 .status(tournament.getStatus())
                 .phase(tournament.getPhase())
+                .leagueId(tournament.getLeague() != null ? tournament.getLeague().getId() : null)
+                .leaguePointsAssigned(tournament.getLeaguePointsAssigned())
                 .scoringSystem(tournament.getTournamentScoring().getScoringSystem())
                 .enabledScoreTypes(tournament.getTournamentScoring().getEnabledScoreTypes())
                 .requireAllScoreTypes(tournament.getTournamentScoring().isRequireAllScoreTypes())

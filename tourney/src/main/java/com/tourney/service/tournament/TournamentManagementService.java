@@ -9,10 +9,12 @@ import com.tourney.domain.tournament.TournamentRound;
 import com.tourney.domain.tournament.TournamentRoundDefinition;
 import com.tourney.domain.tournament.TournamentScoring;
 import com.tourney.domain.league.League;
+import com.tourney.domain.league.LeagueMember;
 import com.tourney.event.TournamentCompletedEvent;
 import com.common.domain.User;
 import com.tourney.dto.tournament.CreateTournamentDTO;
 import com.tourney.dto.tournament.TournamentStatus;
+import com.tourney.dto.tournament.ParticipantStatsDTO;
 import com.tourney.dto.tournament.UpdateTournamentDTO;
 import com.tourney.repository.systems.GameSystemRepository;
 import com.tourney.repository.tournament.TournamentRepository;
@@ -39,6 +41,8 @@ public class TournamentManagementService {
     private final LeagueRepository leagueRepository;
     private final NotificationService notificationService;
     private final ApplicationEventPublisher eventPublisher;
+    private final TournamentStatsService tournamentStatsService;
+    private final com.tourney.repository.league.LeagueMemberRepository leagueMemberRepository;
 
     public Tournament createTournament(CreateTournamentDTO dto, Long organizerId) {
         validateTournamentData(dto);
@@ -453,5 +457,89 @@ public class TournamentManagementService {
         eventPublisher.publishEvent(new TournamentCompletedEvent(this, tournamentId));
         
         return savedTournament;
+    }
+
+    /**
+     * Zatwierdza wyniki turnieju ligowego i przypisuje punkty ligowe uczestnikom.
+     * Ta operacja może być wykonana tylko raz dla każdego turnieju.
+     */
+    public Tournament confirmTournamentForLeague(Long tournamentId, Long currentUserId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new RuntimeException("Nie znaleziono turnieju o ID: " + tournamentId));
+
+        // Walidacja uprawnień - tylko organizator
+        if (tournament.getOrganizer() == null || !tournament.getOrganizer().getId().equals(currentUserId)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN,
+                    "Brak uprawnień do zatwierdzania tego turnieju"
+            );
+        }
+
+        // Walidacja: turniej musi być zakończony
+        if (tournament.getStatus() != TournamentStatus.COMPLETED) {
+            throw new RuntimeException("Turniej musi być zakończony aby przypisać punkty ligowe");
+        }
+
+        // Walidacja: turniej musi należeć do ligi
+        if (tournament.getLeague() == null) {
+            throw new RuntimeException("Turniej nie jest powiązany z żadną ligą");
+        }
+
+        // Walidacja: punkty nie mogły być już przypisane
+        if (Boolean.TRUE.equals(tournament.getLeaguePointsAssigned())) {
+            throw new RuntimeException("Punkty ligowe zostały już przypisane dla tego turnieju");
+        }
+
+        League league = tournament.getLeague();
+        
+        // Pobierz końcowe wyniki turnieju
+        List<ParticipantStatsDTO> standings = tournamentStatsService.calculateParticipantStats(tournament);
+        
+        // Liczba potwierdzonych uczestników
+        int participantCount = (int) tournament.getParticipantLinks().stream()
+                .filter(TournamentParticipant::isConfirmed)
+                .count();
+
+        // Przypisz punkty ligowe każdemu uczestnikowi
+        for (int i = 0; i < standings.size(); i++) {
+            ParticipantStatsDTO participantStats = standings.get(i);
+            
+            // Znajdź uczestnika turnieju
+            User user = userRepository.findById(participantStats.getUserId())
+                    .orElseThrow(() -> new RuntimeException("Nie znaleziono użytkownika"));
+            
+            // Znajdź członkostwo w lidze
+            LeagueMember leagueMember = leagueMemberRepository.findByLeagueAndUser(league, user)
+                    .orElse(null);
+            
+            if (leagueMember != null) {
+                // Punkty bazowe: punkty za uczestnictwo
+                int pointsEarned = league.getPointsParticipation();
+                
+                // Bonus: punkty za każdego uczestnika turnieju
+                pointsEarned += league.getPointsPerParticipant() * participantCount;
+                
+                // Dodatkowe punkty za miejsca na podium
+                if (i == 0) { // 1. miejsce
+                    pointsEarned += 5;  // Dodatkowe 5 punktów za 1. miejsce
+                    leagueMember.setTournamentWins(leagueMember.getTournamentWins() + 1);
+                } else if (i == 1) { // 2. miejsce
+                    pointsEarned += 3;  // Dodatkowe 3 punkty za 2. miejsce
+                } else if (i == 2) { // 3. miejsce
+                    pointsEarned += 1;  // Dodatkowy 1 punkt za 3. miejsce
+                }
+                
+                // Aktualizuj statystyki członka ligi
+                leagueMember.setPoints(leagueMember.getPoints() + pointsEarned);
+                leagueMember.setTournamentsPlayed(leagueMember.getTournamentsPlayed() + 1);
+                
+                leagueMemberRepository.save(leagueMember);
+            }
+        }
+
+        // Oznacz turniej jako przetworzony
+        tournament.setLeaguePointsAssigned(true);
+        
+        return tournamentRepository.save(tournament);
     }
 }

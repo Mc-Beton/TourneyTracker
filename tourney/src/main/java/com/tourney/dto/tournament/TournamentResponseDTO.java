@@ -35,6 +35,10 @@ public class TournamentResponseDTO {
     
     // Wewnętrzny szczegółowy status postępu turnieju
     private TournamentPhase phase;
+    
+    // Liga
+    private Long leagueId;
+    private Boolean leaguePointsAssigned;
 
     // Dodane pola dotyczące punktacji
     private ScoringSystem scoringSystem;
