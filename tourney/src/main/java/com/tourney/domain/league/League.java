@@ -75,6 +75,18 @@ public class League {
     @Builder.Default
     private int pointsPerParticipant = 1;
 
+    @Column(name = "points_first_place", nullable = false)
+    @Builder.Default
+    private int pointsFirstPlace = 5;
+
+    @Column(name = "points_second_place", nullable = false)
+    @Builder.Default
+    private int pointsSecondPlace = 3;
+
+    @Column(name = "points_third_place", nullable = false)
+    @Builder.Default
+    private int pointsThirdPlace = 1;
+
     @org.hibernate.annotations.Formula("(select count(lm.id) from league_members lm where lm.league_id = id)")
     private int memberCount;
 

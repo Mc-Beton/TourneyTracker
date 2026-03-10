@@ -32,6 +32,7 @@ public class SubsequentRoundPairingService {
     private final ScoreRepository scoreRepository;
     private final TournamentRoundDefinitionRepository roundDefinitionRepository;
     private final TeamMemberRepository teamMemberRepository;
+    private final CPSATPairingService cpsatPairingService;
 
     public List<Match> createNextRoundPairings(Long tournamentId, int roundNumber) {
         Tournament tournament = getTournament(tournamentId);
@@ -54,13 +55,14 @@ public class SubsequentRoundPairingService {
         
         List<Match> newMatches;
         
-        if (algorithmType == PairingAlgorithmType.CUSTOM) {
-            // Custom algorytm - stosujemy wybrane strategie
+        if (algorithmType == PairingAlgorithmType.CP_SAT) {
+            // Algorytm CP-SAT - używa solvera optymalizacyjnego
+            newMatches = createMatchesWithCPSAT(rankedPlayers, previousPairings, currentRound, tableStrategy, roundDefinition, playerMetadata);
+        } else if (algorithmType == PairingAlgorithmType.BACKTRACKING) {
+            // Backtracking algorytm - stosujemy systematyczne przeszukiwanie z wybranymi strategiami
             newMatches = createMatches(rankedPlayers, previousPairings, currentRound, tableStrategy, roundDefinition, playerMetadata);
         } else {
             // STANDARD - domyślna strategia (BEST_FIRST)
-            // Nawet w STANDARDZIE wypadałoby stosować te flagi, ale dla bezpieczeństwa zróbmy to tylko jeśli definicja mówi, że są włączone
-            // Skoro definicja ma flagi, to w standardzie też je przekażemy
             newMatches = createMatches(rankedPlayers, previousPairings, currentRound, TableAssignmentStrategy.BEST_FIRST, roundDefinition, playerMetadata);
         }
         
@@ -284,6 +286,62 @@ public class SubsequentRoundPairingService {
             assignRandomTableNumbers(matches);
         }
         // Dla BEST_FIRST nic nie robimy - numery stołów są już przypisane sekwencyjnie
+
+        return matches;
+    }
+
+    /**
+     * Tworzy mecze używając algorytmu CP-SAT
+     */
+    private List<Match> createMatchesWithCPSAT(
+            List<PlayerStats> rankedPlayers,
+            Set<String> previousPairings,
+            TournamentRound currentRound,
+            TableAssignmentStrategy tableStrategy,
+            TournamentRoundDefinition definition,
+            Map<Long, PlayerMetadata> playerMetadata
+    ) {
+        List<Match> matches = new ArrayList<>();
+        int tableNumber = 1;
+
+        List<User> rankedUsers = rankedPlayers.stream()
+                .map(PlayerStats::getUser)
+                .toList();
+
+        // Convert metadata to CPSATPairingService format
+        Map<Long, CPSATPairingService.PlayerMetadata> cpsatMetadata = playerMetadata.entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        e -> new CPSATPairingService.PlayerMetadata(e.getValue().teamId(), e.getValue().city())
+                ));
+
+        // Użyj CP-SAT do znalezienia optymalnego parowania
+        Optional<CPSATPairingService.PairingPlan> pairingPlan = cpsatPairingService.findOptimalPairing(
+                rankedUsers, previousPairings, definition, cpsatMetadata
+        );
+
+        if (pairingPlan.isPresent()) {
+            CPSATPairingService.PairingPlan plan = pairingPlan.get();
+            
+            // Twórz mecze z par
+            for (CPSATPairingService.Pairing pair : plan.pairs()) {
+                matches.add(createMatch(pair.player1(), pair.player2(), currentRound, tableNumber));
+                tableNumber++;
+            }
+            
+            // Dodaj mecz BYE jeśli jest gracz z BYE
+            if (plan.byePlayer() != null) {
+                matches.add(createByeMatch(plan.byePlayer(), currentRound, tableNumber));
+            }
+        } else {
+            // Fallback do istniejącego algorytmu jeśli CP-SAT nie znalazł rozwiązania
+            return createMatches(rankedPlayers, previousPairings, currentRound, tableStrategy, definition, playerMetadata);
+        }
+
+        // Zastosowanie strategii przypisywania stołów
+        if (tableStrategy == TableAssignmentStrategy.RANDOM) {
+            assignRandomTableNumbers(matches);
+        }
 
         return matches;
     }

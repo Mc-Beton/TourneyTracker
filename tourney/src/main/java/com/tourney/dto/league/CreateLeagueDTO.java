@@ -19,4 +19,7 @@ public class CreateLeagueDTO {
     private int pointsLoss;
     private int pointsParticipation;
     private int pointsPerParticipant;
+    private int pointsFirstPlace;
+    private int pointsSecondPlace;
+    private int pointsThirdPlace;
 }

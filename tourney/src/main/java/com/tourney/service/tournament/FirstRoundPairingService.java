@@ -97,8 +97,8 @@ public class FirstRoundPairingService {
         // Dobór algorytmu parowania na podstawie definicji rundy
         PairingAlgorithmType algorithmType = roundDefinition.getPairingAlgorithm();
         
-        if (algorithmType == PairingAlgorithmType.CUSTOM) {
-            // Custom algorytm - stosujemy wybrane strategie
+        if (algorithmType == PairingAlgorithmType.BACKTRACKING) {
+            // Backtracking algorytm - stosujemy wybrane strategie
             PlayerLevelPairingStrategy strategy = roundDefinition.getPlayerLevelPairingStrategy();
             
             if (strategy == PlayerLevelPairingStrategy.NONE) {

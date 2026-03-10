@@ -10,7 +10,14 @@ public enum PairingAlgorithmType {
     STANDARD,
     
     /**
-     * Niestandardowy algorytm - konfigurowalny przez organizatora
+     * Algorytm backtrackingowy - systematycznie przeszukuje wszystkie możliwe parowania,
+     * gwarantuje znalezienie rozwiązania jeśli istnieje. Uwzględnia ograniczenia miękkie (drużyny, miasta)
      */
-    CUSTOM
+    BACKTRACKING,
+    
+    /**
+     * Algorytm CP-SAT (Constraint Programming - Satisfiability) - używa solvera optymalizacyjnego
+     * do znalezienia optymalnego parowania z wagami dla ograniczeń miękkich
+     */
+    CP_SAT
 }

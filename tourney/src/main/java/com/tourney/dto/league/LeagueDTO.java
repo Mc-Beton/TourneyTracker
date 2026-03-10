@@ -24,6 +24,9 @@ public class LeagueDTO {
     private int pointsLoss;
     private int pointsParticipation;
     private int pointsPerParticipant;
+    private int pointsFirstPlace;
+    private int pointsSecondPlace;
+    private int pointsThirdPlace;
 
     // Optional counts
     private int memberCount;

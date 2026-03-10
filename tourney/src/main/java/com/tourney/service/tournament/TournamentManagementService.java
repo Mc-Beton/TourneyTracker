@@ -521,12 +521,12 @@ public class TournamentManagementService {
                 
                 // Dodatkowe punkty za miejsca na podium
                 if (i == 0) { // 1. miejsce
-                    pointsEarned += 5;  // Dodatkowe 5 punktów za 1. miejsce
+                    pointsEarned += league.getPointsFirstPlace();
                     leagueMember.setTournamentWins(leagueMember.getTournamentWins() + 1);
                 } else if (i == 1) { // 2. miejsce
-                    pointsEarned += 3;  // Dodatkowe 3 punkty za 2. miejsce
+                    pointsEarned += league.getPointsSecondPlace();
                 } else if (i == 2) { // 3. miejsce
-                    pointsEarned += 1;  // Dodatkowy 1 punkt za 3. miejsce
+                    pointsEarned += league.getPointsThirdPlace();
                 }
                 
                 // Aktualizuj statystyki członka ligi

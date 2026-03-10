@@ -41,6 +41,9 @@ public class LeagueMapper {
         dto.setPointsLoss(league.getPointsLoss());
         dto.setPointsParticipation(league.getPointsParticipation());
         dto.setPointsPerParticipant(league.getPointsPerParticipant());
+        dto.setPointsFirstPlace(league.getPointsFirstPlace());
+        dto.setPointsSecondPlace(league.getPointsSecondPlace());
+        dto.setPointsThirdPlace(league.getPointsThirdPlace());
         dto.setMemberCount(league.getMemberCount());
         return dto;
     }
