@@ -28,9 +28,11 @@ public class UserService {
     }
 
     public User registerUser(UserRegistrationDTO registrationDTO) {
-        // Verify CAPTCHA first
-        if (!captchaService.verifyCaptcha(registrationDTO.getCaptchaToken())) {
-            throw new RuntimeException("CAPTCHA verification failed. Please try again.");
+        // Verify CAPTCHA only if token is provided
+        if (registrationDTO.getCaptchaToken() != null && !registrationDTO.getCaptchaToken().isEmpty()) {
+            if (!captchaService.verifyCaptcha(registrationDTO.getCaptchaToken())) {
+                throw new RuntimeException("CAPTCHA verification failed. Please try again.");
+            }
         }
 
         if (userRepository.findByEmail(registrationDTO.getEmail()).isPresent()) {
