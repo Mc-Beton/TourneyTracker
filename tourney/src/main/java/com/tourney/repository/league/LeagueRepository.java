@@ -20,6 +20,6 @@ public interface LeagueRepository extends JpaRepository<League, Long> {
     @Query("SELECT l FROM League l JOIN LeagueMember lm ON l.id = lm.league.id WHERE lm.user.id = :userId")
     Page<League> findJoinedLeagues(@Param("userId") Long userId, Pageable pageable);
 
-    @Query("SELECT l FROM League l WHERE NOT EXISTS (SELECT 1 FROM LeagueMember lm WHERE lm.league.id = l.id AND lm.user.id = :userId)")
+    @Query("SELECT l FROM League l WHERE NOT EXISTS (SELECT 1 FROM LeagueMember lm WHERE lm.league.id = l.id AND lm.user.id = :userId) AND l.status <> com.tourney.domain.league.LeagueStatus.ARCHIVED")
     Page<League> findAvailableLeagues(@Param("userId") Long userId, Pageable pageable);
 }
