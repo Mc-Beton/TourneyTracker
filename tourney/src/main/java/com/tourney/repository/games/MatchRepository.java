@@ -15,7 +15,9 @@ import java.util.Optional;
 @Repository
 public interface MatchRepository extends JpaRepository<Match, Long> {
     List<Match> findByStartTimeBetween(LocalDateTime start, LocalDateTime end);
-    List<Match> findByPlayer1IdOrPlayer2Id(Long player1Id, Long player2Id);
+    
+    @Query("SELECT m FROM Match m WHERE m.player1.id = :userId OR m.player2.id = :userId")
+    List<Match> findByPlayer1IdOrPlayer2Id(@Param("userId") Long player1Id, @Param("userId") Long player2Id);
 
     @Query("""
         SELECT m FROM TournamentMatch m
