@@ -16,6 +16,7 @@ import com.tourney.repository.tournament.TournamentRepository;
 import com.tourney.domain.team.TeamMember;
 import com.tourney.domain.team.TeamMemberStatus;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +27,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class SubsequentRoundPairingService {
     private final TournamentRepository tournamentRepository;
     private final MatchRepository matchRepository;
@@ -207,12 +209,6 @@ public class SubsequentRoundPairingService {
         Map<Long, PlayerMetadata> metadata = new HashMap<>();
         List<User> players = rankedPlayers.stream().map(PlayerStats::getUser).toList();
         
-        // Pobierz wszystkich członków drużyn dla tych graczy i tego game system
-        List<TeamMember> teamMembers = teamMemberRepository.findAll(); 
-        // Powyższe jest nieefektywne na dużej skali, ale wystarczy tu. 
-        // Lepiej: findByUserIdInAndTeam_GameSystemId(userIds, gameSystemId)
-        // Zakładam, że teamMemberRepository.findByUser(user) zwróci listę, a my pofiltrujemy po gameSystemie turnieju.
-        
         for (User player : players) {
             Long teamId = null;
             String city = player.getCity(); // Z User entity
@@ -255,6 +251,8 @@ public class SubsequentRoundPairingService {
         Optional<PairingPlan> noRematchPlan = tryBuildNoRematchPlan(rankedUsers, previousPairings, definition, playerMetadata);
         if (noRematchPlan.isPresent()) {
             PairingPlan plan = noRematchPlan.get();
+            log.info("Backtracking algorithm found valid pairing with {} pairs and {} BYE player", 
+                    plan.pairs().size(), plan.byePlayer() != null ? "1" : "no");
             for (Pairing pair : plan.pairs()) {
                 matches.add(createMatch(pair.player1(), pair.player2(), currentRound, tableNumber));
                 tableNumber++;
@@ -264,6 +262,7 @@ public class SubsequentRoundPairingService {
             }
         } else {
             // Fallback: zachowujemy dotychczasową strategię, jeśli pełne parowanie bez powtórek jest niemożliwe.
+            log.warn("Backtracking algorithm failed to find valid pairing, using fallback greedy algorithm (may allow rematches)");
             Set<Long> pairedPlayers = new HashSet<>();
 
             for (int i = 0; i < rankedPlayers.size(); i++) {
@@ -271,7 +270,7 @@ public class SubsequentRoundPairingService {
                     continue;
                 }
 
-                Optional<Match> match = tryCreateMatch(rankedPlayers, i, pairedPlayers, previousPairings, currentRound, tableNumber);
+                Optional<Match> match = tryCreateMatch(rankedPlayers, i, pairedPlayers, previousPairings, currentRound, tableNumber, definition, playerMetadata);
                 if (match.isPresent()) {
                     matches.add(match.get());
                     tableNumber++;
@@ -419,10 +418,8 @@ public class SubsequentRoundPairingService {
                 boolean conflict1 = hasConflict(currentMeta, meta1, definition);
                 boolean conflict2 = hasConflict(currentMeta, meta2, definition);
                 
-                if (conflict1 && !conflict2) return 1; // 1 ma konflikt, 2 nie -> 2 lepszy (return >0 means 1>2?? No, compare(a,b): -1 if a<b. We want non-conflict first.)
-                // Wait. Comparator: negative if first is smaller/better.
-                // We want NON-CONFLICT (false) before CONFLICT (true).
-                // False < True.
+                // Non-conflict (false) should come before conflict (true)
+                // Boolean.compare(false, true) returns -1 (false comes first)
                 if (conflict1 != conflict2) return Boolean.compare(conflict1, conflict2);
                 
                 // Jeśli oba mają konflikt lub oba nie mają, zachowaj oryginalną kolejność (idx1 vs idx2)
@@ -491,7 +488,9 @@ public class SubsequentRoundPairingService {
             Set<Long> pairedPlayers,
             Set<String> previousPairings,
             TournamentRound currentRound,
-            int tableNumber
+            int tableNumber,
+            TournamentRoundDefinition definition,
+            Map<Long, PlayerMetadata> playerMetadata
     ) {
         PlayerStats currentPlayer = rankedPlayers.get(currentPlayerIndex);
         if (pairedPlayers.contains(currentPlayer.getUser().getId())) {
@@ -502,7 +501,9 @@ public class SubsequentRoundPairingService {
                 rankedPlayers,
                 currentPlayerIndex,
                 pairedPlayers,
-                previousPairings
+                previousPairings,
+                definition,
+                playerMetadata
         );
 
         if (opponent.isPresent()) {
@@ -519,18 +520,53 @@ public class SubsequentRoundPairingService {
             List<PlayerStats> rankedPlayers,
             int currentPlayerIndex,
             Set<Long> pairedPlayers,
-            Set<String> previousPairings
+            Set<String> previousPairings,
+            TournamentRoundDefinition definition,
+            Map<Long, PlayerMetadata> playerMetadata
     ) {
         User currentPlayer = rankedPlayers.get(currentPlayerIndex).getUser();
+        PlayerMetadata currentMeta = playerMetadata.get(currentPlayer.getId());
 
-        // Najpierw próbujemy znaleźć przeciwnika, z którym jeszcze nie grano
-        Optional<User> preferredOpponent = findUnplayedOpponent(rankedPlayers, currentPlayerIndex, pairedPlayers, previousPairings);
+        // Najpierw próbujemy znaleźć przeciwnika bez konfliktów (nie grano + bez team/city conflict)
+        Optional<User> preferredOpponent = findUnplayedOpponentWithoutConflicts(
+                rankedPlayers, currentPlayerIndex, pairedPlayers, previousPairings, definition, playerMetadata, currentMeta
+        );
         if (preferredOpponent.isPresent()) {
             return preferredOpponent;
         }
 
-        // Jeśli nie znaleziono, bierzemy pierwszego dostępnego
+        // Jeśli nie znaleziono, próbujemy znaleźć przeciwnika z którym nie grano (ignorując team/city)
+        Optional<User> unplayedOpponent = findUnplayedOpponent(rankedPlayers, currentPlayerIndex, pairedPlayers, previousPairings);
+        if (unplayedOpponent.isPresent()) {
+            log.warn("Fallback: pairing players from same team/city - no better option available");
+            return unplayedOpponent;
+        }
+
+        // Ostateczny fallback: jakikolwiek dostępny przeciwnik (nawet rematch)
+        log.error("Critical: forcing rematch - no other pairing option available");
         return findAnyAvailableOpponent(rankedPlayers, currentPlayer, pairedPlayers);
+    }
+
+    private Optional<User> findUnplayedOpponentWithoutConflicts(
+            List<PlayerStats> rankedPlayers,
+            int currentPlayerIndex,
+            Set<Long> pairedPlayers,
+            Set<String> previousPairings,
+            TournamentRoundDefinition definition,
+            Map<Long, PlayerMetadata> playerMetadata,
+            PlayerMetadata currentMeta
+    ) {
+        User currentPlayer = rankedPlayers.get(currentPlayerIndex).getUser();
+        return rankedPlayers.stream()
+                .skip(currentPlayerIndex + 1)
+                .map(PlayerStats::getUser)
+                .filter(user -> !pairedPlayers.contains(user.getId()))
+                .filter(user -> !havePlayed(previousPairings, currentPlayer.getId(), user.getId()))
+                .filter(user -> {
+                    PlayerMetadata opponentMeta = playerMetadata.get(user.getId());
+                    return !hasConflict(currentMeta, opponentMeta, definition);
+                })
+                .findFirst();
     }
 
     private Optional<User> findUnplayedOpponent(

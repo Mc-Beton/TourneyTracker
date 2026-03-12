@@ -16,7 +16,8 @@ public class RoleInitializer {
             if (userRoleRepository.count() == 0) {
                 UserRole participant = new UserRole(null, "PARTICIPANT");
                 UserRole organizer = new UserRole(null, "ORGANIZER");
-                userRoleRepository.saveAll(List.of(participant, organizer));
+                UserRole admin = new UserRole(null, "ADMIN");
+                userRoleRepository.saveAll(List.of(participant, organizer, admin));
             }
         };
     }
