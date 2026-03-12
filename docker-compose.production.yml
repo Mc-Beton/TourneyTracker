@@ -60,6 +60,7 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: https://warbracket.pl
+        NEXT_PUBLIC_USER_SERVICE_URL: https://warbracket.pl
     container_name: tourney-frontend
     environment:
       NODE_ENV: production
