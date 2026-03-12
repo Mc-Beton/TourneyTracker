@@ -18,14 +18,21 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final CaptchaService captchaService;
 
-    public UserService(UserRepository userRepository, UserRoleRepository userRoleRepository, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository, UserRoleRepository userRoleRepository, PasswordEncoder passwordEncoder, CaptchaService captchaService) {
         this.userRepository = userRepository;
         this.userRoleRepository = userRoleRepository;
         this.passwordEncoder = passwordEncoder;
+        this.captchaService = captchaService;
     }
 
     public User registerUser(UserRegistrationDTO registrationDTO) {
+        // Verify CAPTCHA first
+        if (!captchaService.verifyCaptcha(registrationDTO.getCaptchaToken())) {
+            throw new RuntimeException("CAPTCHA verification failed. Please try again.");
+        }
+
         if (userRepository.findByEmail(registrationDTO.getEmail()).isPresent()) {
             throw new RuntimeException("Email already in use!");
         }
