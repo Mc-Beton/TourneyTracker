@@ -21,6 +21,8 @@ public interface NotificationService {
     
     // League Challenge notifications
     void notifyLeagueChallengeReceived(Long userId, Long challengerId, String challengerName, Long leagueId, String leagueName);
+    void notifyLeagueChallengeAccepted(Long userId, Long opponentId, String opponentName, Long leagueId, String leagueName);
+    void notifyLeagueChallengeRejected(Long userId, Long opponentId, String opponentName, Long leagueId, String leagueName);
     
     // Additional methods used by controllers/services
     List<NotificationDTO> getRecentNotifications(Long userId, int limit);

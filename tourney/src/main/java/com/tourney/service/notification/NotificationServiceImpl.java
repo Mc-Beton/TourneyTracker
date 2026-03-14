@@ -66,7 +66,19 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     public void notifyLeagueChallengeReceived(Long userId, Long challengerId, String challengerName, Long leagueId, String leagueName) {
         String msg = "Zostałeś wyzwany w Lidze " + leagueName + " przez gracza " + challengerName;
-        createNotification(userId, NotificationType.CHALLENGE_RECEIVED, leagueId, leagueName, msg, challengerId, challengerName);
+        createNotification(userId, NotificationType.LEAGUE_CHALLENGE_RECEIVED, leagueId, leagueName, msg, challengerId, challengerName);
+    }
+
+    @Override
+    public void notifyLeagueChallengeAccepted(Long userId, Long opponentId, String opponentName, Long leagueId, String leagueName) {
+        String msg = "Twoje wyzwanie w Lidze " + leagueName + " zostało przyjęte przez gracza " + opponentName;
+        createNotification(userId, NotificationType.LEAGUE_CHALLENGE_ACCEPTED, leagueId, leagueName, msg, opponentId, opponentName);
+    }
+
+    @Override
+    public void notifyLeagueChallengeRejected(Long userId, Long opponentId, String opponentName, Long leagueId, String leagueName) {
+        String msg = "Twoje wyzwanie w Lidze " + leagueName + " zostało odrzucone przez gracza " + opponentName;
+        createNotification(userId, NotificationType.LEAGUE_CHALLENGE_REJECTED, leagueId, leagueName, msg, opponentId, opponentName);
     }
 
 
