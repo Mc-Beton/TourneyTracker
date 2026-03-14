@@ -1,0 +1,19 @@
+-- Add league challenge notification types to the notifications type constraint
+ALTER TABLE notifications DROP CONSTRAINT IF EXISTS notifications_type_check;
+
+ALTER TABLE notifications ADD CONSTRAINT notifications_type_check CHECK (type IN (
+    'PARTICIPANT_REGISTERED',
+    'ARMY_LIST_SUBMITTED',
+    'PARTICIPATION_CONFIRMED',
+    'PAYMENT_CONFIRMED',
+    'ARMY_LIST_APPROVED',
+    'ARMY_LIST_REJECTED',
+    'TOURNAMENT_STARTED',
+    'CHALLENGE_RECEIVED',
+    'CHALLENGE_ACCEPTED',
+    'CHALLENGE_REJECTED',
+    'LEAGUE_CHALLENGE_RECEIVED',
+    'LEAGUE_CHALLENGE_ACCEPTED',
+    'LEAGUE_CHALLENGE_REJECTED',
+    'TOURNAMENT_RESULT'
+));
