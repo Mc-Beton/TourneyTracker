@@ -647,6 +647,37 @@ public class LeagueService {
                     challenge.getLeague().getId(),
                     challenge.getLeague().getName()
             );
+        }
+        
+        leagueChallengeRepository.save(challenge);
+    }
+
+    @Transactional(readOnly = true)
+    public List<LeagueChallengeDTO> getMyChallenges(Long leagueId, Long userId) {
+        return leagueChallengeRepository.findByChallengedIdAndStatus(userId, MatchStatus.PENDING).stream()
+                .filter(c -> c.getLeague().getId().equals(leagueId))
+                .map(this::toChallengeDto)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<LeagueChallengeDTO> getMyOutgoingChallenges(Long leagueId, Long userId) {
+         return leagueChallengeRepository.findByChallengerIdAndStatus(userId, MatchStatus.PENDING).stream()
+                .filter(c -> c.getLeague().getId().equals(leagueId))
+                .map(this::toChallengeDto)
+                .collect(Collectors.toList());
+    }
+
+    private LeagueChallengeDTO toChallengeDto(LeagueChallenge c) {
+        return LeagueChallengeDTO.builder()
+                .id(c.getId())
+                .leagueId(c.getLeague().getId())
+                .challengerId(c.getChallenger().getId())
+                .challengerName(c.getChallenger().getName())
+                .challengedId(c.getChallenged().getId())
+                .challengedName(c.getChallenged().getName())
+                .status(c.getStatus().name())
+                .createdDate(c.getCreatedDate())
                 .scheduledTime(c.getScheduledTime())
                 .message(c.getMessage())
                 .matchId(c.getMatch() != null ? c.getMatch().getId() : null)
