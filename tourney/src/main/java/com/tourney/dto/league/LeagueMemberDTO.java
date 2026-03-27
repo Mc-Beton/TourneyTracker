@@ -19,4 +19,5 @@ public class LeagueMemberDTO {
     private int tournamentsPlayed;
     private int tournamentWins;
     private int pointsScored;
+    private boolean hasPaid;
 }

@@ -2,6 +2,7 @@ package com.tourney.domain.league;
 
 import com.common.domain.User;
 import com.tourney.domain.games.Match;
+import com.tourney.domain.games.MatchMode;
 import com.tourney.domain.games.MatchStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -47,6 +48,11 @@ public class LeagueChallenge {
 
     @Column(columnDefinition = "TEXT")
     private String message;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "match_mode", nullable = false)
+    @Builder.Default
+    private MatchMode matchMode = MatchMode.LIVE;
 
     @Column(name = "created_date", nullable = false)
     @Builder.Default

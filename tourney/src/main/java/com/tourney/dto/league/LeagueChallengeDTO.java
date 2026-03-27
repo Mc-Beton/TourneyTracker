@@ -1,5 +1,6 @@
 package com.tourney.dto.league;
 
+import com.tourney.domain.games.MatchMode;
 import lombok.Builder;
 import lombok.Data;
 import java.time.LocalDateTime;
@@ -18,4 +19,5 @@ public class LeagueChallengeDTO {
     private LocalDateTime scheduledTime;
     private String message;
     private Long matchId;
+    private MatchMode matchMode;
 }

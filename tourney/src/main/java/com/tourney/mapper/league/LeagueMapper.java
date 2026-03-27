@@ -36,6 +36,7 @@ public class LeagueMapper {
         dto.setEndDate(league.getEndDate());
         dto.setAutoAcceptGames(league.isAutoAcceptGames());
         dto.setAutoAcceptTournaments(league.isAutoAcceptTournaments());
+        dto.setPaymentRequired(league.isPaymentRequired());
         dto.setPointsWin(league.getPointsWin());
         dto.setPointsDraw(league.getPointsDraw());
         dto.setPointsLoss(league.getPointsLoss());

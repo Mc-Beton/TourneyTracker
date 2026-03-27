@@ -203,6 +203,18 @@ public class LeagueController {
          return ResponseEntity.ok(leagueService.getMyOutgoingChallenges(id, user.getId()));
     }
 
+    @PatchMapping("/{id}/members/{userId}/payment")
+    public ResponseEntity<LeagueMemberDTO> togglePaymentStatus(
+            @PathVariable Long id,
+            @PathVariable Long userId,
+            @RequestParam boolean hasPaid,
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        User owner = getUser(userPrincipal);
+        LeagueMemberDTO result = leagueService.togglePaymentStatus(id, userId, hasPaid, owner.getId());
+        return ResponseEntity.ok(result);
+    }
+
     private User getUser(UserPrincipal userPrincipal) {
         return userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));

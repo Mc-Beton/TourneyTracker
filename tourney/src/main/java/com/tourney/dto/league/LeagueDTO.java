@@ -19,6 +19,7 @@ public class LeagueDTO {
     private String status;
     private boolean autoAcceptGames;
     private boolean autoAcceptTournaments;
+    private boolean paymentRequired;
     private int pointsWin;
     private int pointsDraw;
     private int pointsLoss;

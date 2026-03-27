@@ -81,6 +81,12 @@ public class NotificationServiceImpl implements NotificationService {
         createNotification(userId, NotificationType.LEAGUE_CHALLENGE_REJECTED, leagueId, leagueName, msg, opponentId, opponentName);
     }
 
+    @Override
+    public void notifyLeaguePaymentConfirmed(Long userId, Long leagueId, String leagueName, Long confirmerId, String confirmerName) {
+        String msg = "Twoja płatność za udział w Lidze " + leagueName + " została potwierdzona";
+        createNotification(userId, NotificationType.PAYMENT_CONFIRMED, leagueId, leagueName, msg, confirmerId, confirmerName);
+    }
+
 
     @Override
     @Transactional(readOnly = true)

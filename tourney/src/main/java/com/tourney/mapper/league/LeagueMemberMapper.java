@@ -33,6 +33,7 @@ public class LeagueMemberMapper {
         dto.setTournamentsPlayed(member.getTournamentsPlayed());
         dto.setTournamentWins(member.getTournamentWins());
         dto.setPointsScored(member.getPointsScored());
+        dto.setHasPaid(member.isHasPaid());
         return dto;
     }
 }

@@ -64,6 +64,10 @@ public class LeagueMember {
     @Builder.Default
     private int pointsScored = 0;  // Total points scored in games
 
+    @Column(name = "has_paid", nullable = false)
+    @Builder.Default
+    private boolean hasPaid = false;
+
     @Column(name = "joined_at", insertable = false, updatable = false)
     private LocalDateTime joinedAt;
 }

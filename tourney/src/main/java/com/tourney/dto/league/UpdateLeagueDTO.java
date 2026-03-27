@@ -13,6 +13,7 @@ public class UpdateLeagueDTO {
     private LocalDate endDate;
     private boolean autoAcceptGames;
     private boolean autoAcceptTournaments;
+    private boolean paymentRequired;
     private int pointsWin;
     private int pointsDraw;
     private int pointsLoss;

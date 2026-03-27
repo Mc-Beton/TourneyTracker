@@ -54,6 +54,10 @@ public class League {
     @Builder.Default
     private boolean autoAcceptTournaments = false;
 
+    @Column(name = "payment_required", nullable = false)
+    @Builder.Default
+    private boolean paymentRequired = false;
+
     // Scoring System
     @Column(name = "points_win", nullable = false)
     @Builder.Default

@@ -3,6 +3,7 @@ package com.tourney.service.league;
 import com.common.domain.User;
 import com.tourney.domain.league.*;
 import com.tourney.domain.games.Match;
+import com.tourney.domain.games.MatchMode;
 import com.tourney.domain.games.SingleMatch;
 import com.tourney.domain.games.MatchStatus;
 import com.tourney.domain.systems.GameSystem;
@@ -75,6 +76,7 @@ public class LeagueService {
                 .endDate(createDto.getEndDate())
                 .autoAcceptGames(createDto.isAutoAcceptGames())
                 .autoAcceptTournaments(createDto.isAutoAcceptTournaments())
+                .paymentRequired(createDto.isPaymentRequired())
                 .pointsWin(createDto.getPointsWin())
                 .pointsDraw(createDto.getPointsDraw())
                 .pointsLoss(createDto.getPointsLoss())
@@ -111,6 +113,7 @@ public class LeagueService {
         if (dto.getEndDate() != null) league.setEndDate(dto.getEndDate());
         league.setAutoAcceptGames(dto.isAutoAcceptGames());
         league.setAutoAcceptTournaments(dto.isAutoAcceptTournaments());
+        league.setPaymentRequired(dto.isPaymentRequired());
         league.setPointsWin(dto.getPointsWin());
         league.setPointsDraw(dto.getPointsDraw());
         league.setPointsLoss(dto.getPointsLoss());
@@ -569,6 +572,7 @@ public class LeagueService {
                 .status(MatchStatus.PENDING)
                 .scheduledTime(dto.getScheduledTime())
                 .message(dto.getMessage())
+                .matchMode(dto.getMatchMode() != null ? dto.getMatchMode() : MatchMode.LIVE)
                 .createdDate(LocalDateTime.now())
                 .build();
         
@@ -604,6 +608,7 @@ public class LeagueService {
             CreateSingleMatchDTO matchDto = CreateSingleMatchDTO.builder()
                     .gameSystemId(challenge.getLeague().getGameSystem().getId())
                     .player2Id(challenge.getChallenger().getId())
+                    .mode(challenge.getMatchMode())
                     .build();
             
             // Note: createSingleMatch takes creatorId (player1), so challenged user becomes player1 (host)
@@ -681,6 +686,39 @@ public class LeagueService {
                 .scheduledTime(c.getScheduledTime())
                 .message(c.getMessage())
                 .matchId(c.getMatch() != null ? c.getMatch().getId() : null)
+                .matchMode(c.getMatchMode())
                 .build();
+    }
+
+    @Transactional
+    public LeagueMemberDTO togglePaymentStatus(Long leagueId, Long userId, boolean hasPaid, Long ownerId) {
+        League league = leagueRepository.findById(leagueId)
+                .orElseThrow(() -> new IllegalArgumentException("League not found"));
+
+        if (!league.getOwner().getId().equals(ownerId)) {
+            throw new SecurityException("Only league owner can change payment status");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        LeagueMember member = leagueMemberRepository.findByLeagueAndUser(league, user)
+                .orElseThrow(() -> new IllegalArgumentException("User is not a member of this league"));
+
+        member.setHasPaid(hasPaid);
+        leagueMemberRepository.save(member);
+
+        // Notify member when payment is confirmed
+        if (hasPaid) {
+            notificationService.notifyLeaguePaymentConfirmed(
+                    userId,
+                    leagueId,
+                    league.getName(),
+                    ownerId,
+                    league.getOwner().getName()
+            );
+        }
+
+        return leagueMemberMapper.toDto(member);
     }
 }
