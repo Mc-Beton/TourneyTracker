@@ -122,14 +122,16 @@ public class TournamentParticipantService {
         participantRepository.save(participant);
 
         // Notify participant
+        String notifMessage = dto.isApproved()
+                ? "Twoja rozpiska została zatwierdzona"
+                : ("Twoja rozpiska została odrzucona" +
+                   (dto.getRejectionReason() != null && !dto.getRejectionReason().isBlank() ? ": " + dto.getRejectionReason() : ""));
         notificationService.createNotification(
                 userId,
                 dto.isApproved() ? NotificationType.ARMY_LIST_APPROVED : NotificationType.ARMY_LIST_REJECTED,
                 tournamentId,
                 tournament.getName(),
-                dto.isApproved() 
-                    ? "Twoja rozpiska została zatwierdzona"
-                    : "Twoja rozpiska została odrzucona: " + dto.getRejectionReason(),
+                notifMessage,
                 organizerId,
                 tournament.getOrganizer().getName()
         );
