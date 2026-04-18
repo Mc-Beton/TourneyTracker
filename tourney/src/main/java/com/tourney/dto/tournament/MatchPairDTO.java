@@ -3,7 +3,7 @@ package com.tourney.dto.tournament;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Data
 @Builder
@@ -20,10 +20,10 @@ public class MatchPairDTO {
     private Integer player2TournamentPoints; // duże punkty gracza 2
     
     private String status; // SCHEDULED, IN_PROGRESS, COMPLETED
-    private LocalDateTime startTime;
-    private LocalDateTime gameEndTime; // actual end time, null until match finishes
+    private OffsetDateTime startTime;
+    private OffsetDateTime gameEndTime; // actual end time, null until match finishes
     private int gameDurationMinutes; // planned duration
-    private LocalDateTime resultSubmissionDeadline;
+    private OffsetDateTime resultSubmissionDeadline;
     
     private boolean scoresSubmitted; // czy obaj gracze wpisali punkty
     

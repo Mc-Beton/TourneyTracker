@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -541,10 +542,10 @@ public class TournamentRoundService {
                 .player2Name(match.getPlayer2() != null ? match.getPlayer2().getName() : "BYE")
                 .player2TournamentPoints(player2TP)
                 .status(match.getStatus().name())
-                .startTime(match.getStartTime())
-                .gameEndTime(match.getGameEndTime())
+                .startTime(match.getStartTime() != null ? match.getStartTime().atOffset(ZoneOffset.UTC) : null)
+                .gameEndTime(match.getGameEndTime() != null ? match.getGameEndTime().atOffset(ZoneOffset.UTC) : null)
                 .gameDurationMinutes(match.getGameDurationMinutes())
-                .resultSubmissionDeadline(match.getResultSubmissionDeadline())
+                .resultSubmissionDeadline(match.getResultSubmissionDeadline() != null ? match.getResultSubmissionDeadline().atOffset(ZoneOffset.UTC) : null)
                 .scoresSubmitted(match.isCompleted())
                 .player1TotalScore(player1Total)
                 .player2TotalScore(player2Total)
