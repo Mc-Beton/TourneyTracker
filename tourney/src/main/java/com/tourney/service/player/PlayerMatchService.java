@@ -28,6 +28,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -137,6 +139,12 @@ public class PlayerMatchService {
         return Map.of(score.getScoreType(), score.getScore().intValue());
     }
 
+    private OffsetDateTime toOffset(LocalDateTime local) {
+        if (local == null) return null;
+        ZoneId zone = ZoneId.systemDefault();
+        return local.atZone(zone).toOffsetDateTime();
+    }
+
     public List<ActiveTournamentDTO> getActiveTournaments(Long playerId) {
         return tournamentRepository.findActiveForPlayer(playerId).stream()
                 .map(tournament -> {
@@ -145,8 +153,8 @@ public class PlayerMatchService {
                             .tournamentId(tournament.getId())
                             .tournamentName(tournament.getName())
                             .currentRound(tournament.getCurrentRound())
-                            .roundStartTime(tournament.getCurrentRoundStartTime())
-                            .roundEndTime(tournament.getCurrentRoundEndTime())
+                            .roundStartTime(toOffset(tournament.getCurrentRoundStartTime()))
+                            .roundEndTime(toOffset(tournament.getCurrentRoundEndTime()))
                             .currentMatchStatus(currentMatch != null ? currentMatch.getStatus() : null)
                             .opponent(currentMatch != null ? getOpponentName(currentMatch, playerId) : null)
                             .requiresAction(checkIfActionRequired(tournament, playerId))

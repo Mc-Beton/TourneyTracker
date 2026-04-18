@@ -6,6 +6,7 @@ import com.tourney.domain.scores.TournamentPointsSystem;
 import com.tourney.domain.tournament.RoundStartMode;
 import lombok.Builder;
 import lombok.Data;
+import lombok.Builder.Default;
 
 import jakarta.validation.constraints.*;
 import java.time.LocalDate;
@@ -32,14 +33,17 @@ public class CreateTournamentDTO {
     private int roundDurationMinutes;
     
     // Czas dodatkowy na wpisanie punktów (domyślnie 15 min)
+    @Default
     private Integer scoreSubmissionExtraMinutes = 15;
     
     // Tryb startowania meczów
+    @Default
     private RoundStartMode roundStartMode = RoundStartMode.ALL_MATCHES_TOGETHER;
     
     @NotNull(message = "System gry jest wymagany")
     private Long gameSystemId;
     
+    @Default
     private TournamentType type = TournamentType.SWISS;
     
     private Integer maxParticipants;

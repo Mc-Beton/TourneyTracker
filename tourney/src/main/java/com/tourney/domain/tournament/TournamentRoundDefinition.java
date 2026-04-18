@@ -33,6 +33,7 @@ public class TournamentRoundDefinition {
     @JoinColumn(name = "primary_mission_id")
     private PrimaryMission primaryMission;
     
+    @Builder.Default
     @Column(nullable = false)
     private Boolean isSplitMapLayout = false;
     
