@@ -23,6 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -81,10 +83,10 @@ public class MatchScoringService {
                 .player2Name(resolvePlayer2Name(match))
                 .currentRound(currentRound)
                 .totalRounds(totalRounds)
-                .startTime(match.getStartTime())
+                .startTime(toUtc(match.getStartTime()))
                 .gameDurationMinutes(match.getGameDurationMinutes())
-                .resultSubmissionDeadline(match.getResultSubmissionDeadline())
-                .endTime(match.getGameEndTime())
+                .resultSubmissionDeadline(toUtc(match.getResultSubmissionDeadline()))
+                .endTime(toUtc(match.getGameEndTime()))
                 .primaryScoreEnabled(primaryScoreEnabled)
                 .secondaryScoreEnabled(secondaryScoreEnabled)
                 .thirdScoreEnabled(thirdScoreEnabled)
@@ -254,5 +256,11 @@ public class MatchScoringService {
         }
         String guest = match.getDetails() != null ? match.getDetails().getGuestPlayer2Name() : null;
         return StringUtils.hasText(guest) ? guest.trim() : null;
+    }
+
+    private OffsetDateTime toUtc(LocalDateTime local) {
+        if (local == null) return null;
+        // Interpretujemy LocalDateTime jako czas w UTC i zwracamy OffsetDateTime z offsetem +00:00
+        return local.atOffset(ZoneOffset.UTC);
     }
 }

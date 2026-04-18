@@ -4,6 +4,7 @@ package com.tourney.dto.matches;
 import com.tourney.dto.rounds.RoundScoresDTO;
 import lombok.Builder;
 import lombok.Data;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 @Data
@@ -16,10 +17,10 @@ public class MatchScoringDTO {
     private int currentRound;
     private int totalRounds;
     
-    private java.time.LocalDateTime startTime; // start rundy turniejowej
+    private OffsetDateTime startTime; // start meczu (z offsetem)
     private Integer gameDurationMinutes; // czas trwania rundy turniejowej
-    private java.time.LocalDateTime resultSubmissionDeadline; // deadline do wysyłania wyników
-    private java.time.LocalDateTime endTime; // czas zakończenia meczu
+    private OffsetDateTime resultSubmissionDeadline; // deadline do wysyłania wyników (z offsetem)
+    private OffsetDateTime endTime; // czas zakończenia meczu (z offsetem)
 
     private boolean primaryScoreEnabled;
     private boolean secondaryScoreEnabled;
