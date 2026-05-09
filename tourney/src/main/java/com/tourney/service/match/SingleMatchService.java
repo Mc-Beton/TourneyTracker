@@ -426,6 +426,8 @@ public class SingleMatchService {
             match.setMatchResult(result);
             match.setStatus(MatchStatus.COMPLETED);
         }
+        // Ensure completed flag is set for user profile stats aggregation
+        match.setCompleted(true);
         if (match.getGameEndTime() == null) {
             match.setGameEndTime(LocalDateTime.now());
         }

@@ -243,7 +243,13 @@ public class LeagueService {
     public Page<LeagueMatchDTO> getLeagueMatches(Long leagueId, Pageable pageable) {
         League league = leagueRepository.findById(leagueId)
                 .orElseThrow(() -> new IllegalArgumentException("League not found"));
-        return leagueMatchRepository.findByLeague(league, pageable)
+        // Enforce sorting by id DESC (newest first)
+        org.springframework.data.domain.Pageable sorted = org.springframework.data.domain.PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id")
+        );
+        return leagueMatchRepository.findByLeague(league, sorted)
                 .map(leagueMatchMapper::toDto);
     }
 
@@ -403,6 +409,8 @@ public class LeagueService {
         }
         
         match.setStatus(MatchStatus.COMPLETED);
+        // Ensure completed flag is set for user profile stats aggregation
+        match.setCompleted(true);
         matchRepository.save(match);
         
         processMatchPoints(leagueMatch);
