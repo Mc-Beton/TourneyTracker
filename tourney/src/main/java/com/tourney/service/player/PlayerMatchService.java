@@ -54,11 +54,40 @@ public class PlayerMatchService {
     private final com.tourney.service.tournament.ParticipantStatsUpdateService participantStatsUpdateService;
 
     public Match getCurrentMatchForPlayer(Tournament tournament, Long playerId) {
-        return matchRepository.findByTournamentAndPlayer(
-                tournament.getId(),
-                playerId,
-                tournament.getCurrentRound()
-        );
+        // 1) Spróbuj znaleźć w bieżącej rundzie – repo zwraca listę posortowaną malejąco po id
+        List<com.tourney.domain.games.TournamentMatch> inCurrentRound =
+                matchRepository.findAllByTournamentAndPlayerInRound(
+                        tournament.getId(),
+                        playerId,
+                        tournament.getCurrentRound()
+                );
+
+        // Wybór preferowanego meczu: najpierw IN_PROGRESS, potem SCHEDULED, w obu przypadkach najwyższe id
+        if (inCurrentRound != null && !inCurrentRound.isEmpty()) {
+            com.tourney.domain.games.TournamentMatch pick = inCurrentRound.stream()
+                    .filter(m -> m.getStatus() == MatchStatus.IN_PROGRESS)
+                    .findFirst()
+                    .orElseGet(() -> inCurrentRound.stream()
+                            .filter(m -> m.getStatus() == MatchStatus.SCHEDULED)
+                            .findFirst()
+                            .orElse(null));
+            if (pick != null) return pick;
+        }
+
+        // 2) Fallback: dowolny IN_PROGRESS w całym turnieju (ostatnia runda, największe id)
+        List<com.tourney.domain.games.TournamentMatch> inProgressAnyRound =
+                matchRepository.findInProgressForPlayerInTournament(tournament.getId(), playerId);
+        if (inProgressAnyRound != null && !inProgressAnyRound.isEmpty()) {
+            return inProgressAnyRound.get(0);
+        }
+
+        // 3) Ostatnia szansa: jeśli w bieżącej rundzie coś jest (np. inny status), wybierz rekord o największym id
+        if (inCurrentRound != null && !inCurrentRound.isEmpty()) {
+            return inCurrentRound.get(0);
+        }
+
+        // brak dopasowania
+        return null;
     }
 
     public String getOpponentName(Match match, Long playerId) {
@@ -170,8 +199,8 @@ public class PlayerMatchService {
 
         Match match = getCurrentMatchForPlayer(tournament, playerId);
         if (match == null) {
-            throw new MatchOperationException(MATCH_NOT_FOUND,
-                "Nie znaleziono aktywnego meczu dla gracza w tym turnieju");
+            // Zamiast 500 zwracamy brak treści — kontroler zamieni null na 204 No Content
+            return null;
         }
 
         return CurrentMatchDTO.builder()

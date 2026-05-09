@@ -39,7 +39,11 @@ public class PlayerMatchController {
             @PathVariable Long tournamentId,
             @AuthenticationPrincipal UserPrincipal currentUser
     ) {
-        return ResponseEntity.ok(playerMatchService.getCurrentMatch(tournamentId, currentUser.getId()));
+        CurrentMatchDTO dto = playerMatchService.getCurrentMatch(tournamentId, currentUser.getId());
+        if (dto == null) {
+            return ResponseEntity.noContent().build(); // 204 zamiast 500
+        }
+        return ResponseEntity.ok(dto);
     }
 
     @PostMapping("/matches/{matchId}/report-ready")
