@@ -528,6 +528,11 @@ public class TournamentManagementService {
                 } else if (i == 2) { // 3. miejsce
                     pointsEarned += league.getPointsThirdPlace();
                 }
+
+                // Opcjonalnie dodaj punkty TP z turnieju, jeśli liga ma włączoną opcję
+                if (league.isIncludeTpFromTournament()) {
+                    pointsEarned += participantStats.getTournamentPoints();
+                }
                 
                 // Aktualizuj statystyki członka ligi
                 leagueMember.setPoints(leagueMember.getPoints() + pointsEarned);

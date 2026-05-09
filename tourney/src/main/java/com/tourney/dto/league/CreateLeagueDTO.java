@@ -23,4 +23,7 @@ public class CreateLeagueDTO {
     private int pointsFirstPlace;
     private int pointsSecondPlace;
     private int pointsThirdPlace;
+
+    // New: when true, add players' TP from the tournament to league points on confirmation
+    private boolean includeTpFromTournament;
 }

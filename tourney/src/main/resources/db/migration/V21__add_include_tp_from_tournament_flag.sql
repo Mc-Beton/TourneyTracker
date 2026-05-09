@@ -1,0 +1,2 @@
+ALTER TABLE IF EXISTS leagues
+    ADD COLUMN IF NOT EXISTS include_tp_from_tournament BOOLEAN NOT NULL DEFAULT FALSE;

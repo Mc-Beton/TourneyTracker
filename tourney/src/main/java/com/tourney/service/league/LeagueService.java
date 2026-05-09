@@ -82,6 +82,7 @@ public class LeagueService {
                 .pointsLoss(createDto.getPointsLoss())
                 .pointsParticipation(createDto.getPointsParticipation())
                 .pointsPerParticipant(createDto.getPointsPerParticipant())
+                .includeTpFromTournament(createDto.isIncludeTpFromTournament())
                 .status(LeagueStatus.DRAFT)
                 .build();
         
@@ -119,6 +120,7 @@ public class LeagueService {
         league.setPointsLoss(dto.getPointsLoss());
         league.setPointsParticipation(dto.getPointsParticipation());
         league.setPointsPerParticipant(dto.getPointsPerParticipant());
+        league.setIncludeTpFromTournament(dto.isIncludeTpFromTournament());
 
         return leagueMapper.toDto(leagueRepository.save(league));
     }
