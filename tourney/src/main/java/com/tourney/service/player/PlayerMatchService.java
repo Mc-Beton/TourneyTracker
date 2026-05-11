@@ -175,17 +175,19 @@ public class PlayerMatchService {
                     } catch (NonUniqueResultException nure) {
                         // Diagnostic logging: count duplicates per type for this round + player
                         try {
+                            final Long rId = round.getId();
+                            final Long pId = playerId;
                             List<Score> all = scoreRepository.findAllByMatchIdWithRound(matchId);
                             long totalForPlayerAndRound = all.stream()
-                                    .filter(s -> s.getMatchRound() != null && s.getMatchRound().getId().equals(round.getId()))
-                                    .filter(s -> s.getUser() != null && s.getUser().getId().equals(playerId))
+                                    .filter(s -> s.getMatchRound() != null && s.getMatchRound().getId().equals(rId))
+                                    .filter(s -> s.getUser() != null && s.getUser().getId().equals(pId))
                                     .count();
                             Map<ScoreType, Long> byType = all.stream()
-                                    .filter(s -> s.getMatchRound() != null && s.getMatchRound().getId().equals(round.getId()))
-                                    .filter(s -> s.getUser() != null && s.getUser().getId().equals(playerId))
+                                    .filter(s -> s.getMatchRound() != null && s.getMatchRound().getId().equals(rId))
+                                    .filter(s -> s.getUser() != null && s.getUser().getId().equals(pId))
                                     .collect(Collectors.groupingBy(Score::getScoreType, Collectors.counting()));
                             log.error("[CurrentMatch][SCORES] NonUniqueResult for PLAYER (matchId={}, roundNo={}, roundId={}, playerId={}) duplicates={}, byType={}",
-                                    matchId, round.getRoundNumber(), round.getId(), playerId, totalForPlayerAndRound, byType);
+                                    matchId, round.getRoundNumber(), rId, pId, totalForPlayerAndRound, byType);
                         } catch (Exception ex) {
                             log.error("[CurrentMatch][SCORES] Failed to collect diagnostics for PLAYER (matchId={}, roundId={}, playerId={}): {}", matchId, round.getId(), playerId, ex.toString());
                         }
@@ -199,17 +201,19 @@ public class PlayerMatchService {
                             opponentScore = scoreRepository.findByMatchRoundAndPlayerId(round, opponentId);
                         } catch (NonUniqueResultException nure) {
                             try {
+                                final Long rId = round.getId();
+                                final Long oppId = opponentId;
                                 List<Score> all = scoreRepository.findAllByMatchIdWithRound(matchId);
                                 long totalForOppAndRound = all.stream()
-                                        .filter(s -> s.getMatchRound() != null && s.getMatchRound().getId().equals(round.getId()))
-                                        .filter(s -> s.getUser() != null && s.getUser().getId().equals(opponentId))
+                                        .filter(s -> s.getMatchRound() != null && s.getMatchRound().getId().equals(rId))
+                                        .filter(s -> s.getUser() != null && s.getUser().getId().equals(oppId))
                                         .count();
                                 Map<ScoreType, Long> byType = all.stream()
-                                        .filter(s -> s.getMatchRound() != null && s.getMatchRound().getId().equals(round.getId()))
-                                        .filter(s -> s.getUser() != null && s.getUser().getId().equals(opponentId))
+                                        .filter(s -> s.getMatchRound() != null && s.getMatchRound().getId().equals(rId))
+                                        .filter(s -> s.getUser() != null && s.getUser().getId().equals(oppId))
                                         .collect(Collectors.groupingBy(Score::getScoreType, Collectors.counting()));
                                 log.error("[CurrentMatch][SCORES] NonUniqueResult for OPPONENT (matchId={}, roundNo={}, roundId={}, opponentId={}) duplicates={}, byType={}",
-                                        matchId, round.getRoundNumber(), round.getId(), opponentId, totalForOppAndRound, byType);
+                                        matchId, round.getRoundNumber(), rId, oppId, totalForOppAndRound, byType);
                             } catch (Exception ex) {
                                 log.error("[CurrentMatch][SCORES] Failed to collect diagnostics for OPPONENT (matchId={}, roundId={}, opponentId={}): {}", matchId, round.getId(), opponentId, ex.toString());
                             }
