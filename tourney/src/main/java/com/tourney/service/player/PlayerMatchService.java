@@ -173,6 +173,7 @@ public class PlayerMatchService {
                     } catch (Exception e) {
                         log.warn("[CurrentMatch] Unable to resolve opponentId for matchId={}, playerId={}: {}", matchId, playerId, e.toString());
                     }
+                    final Long oppId = opponentId;
 
                     List<Score> roundScores = scoresByRoundId.getOrDefault(roundId, Collections.emptyList());
 
@@ -185,9 +186,9 @@ public class PlayerMatchService {
                                     Integer::sum));
 
                     // Aggregate opponent scores by ScoreType (if any)
-                    Map<ScoreType, Integer> opponentAggregated = opponentId == null ? Collections.emptyMap() :
+                    Map<ScoreType, Integer> opponentAggregated = oppId == null ? Collections.emptyMap() :
                             roundScores.stream()
-                                    .filter(s -> s.getUser() != null && s.getUser().getId() != null && s.getUser().getId().equals(opponentId))
+                                    .filter(s -> s.getUser() != null && s.getUser().getId() != null && s.getUser().getId().equals(oppId))
                                     .collect(Collectors.toMap(
                                             Score::getScoreType,
                                             s -> s.getScore() != null ? s.getScore().intValue() : 0,
