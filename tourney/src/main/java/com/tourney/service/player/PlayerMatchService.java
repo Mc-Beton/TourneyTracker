@@ -158,10 +158,15 @@ public class PlayerMatchService {
         Long matchId = match.getId();
         log.debug("[CurrentMatch] Build round scores for matchId={}, playerId={}, rounds={} ", matchId, playerId, rounds != null ? rounds.size() : 0);
 
+        // Prefetch all scores for this match once and group by roundId
+        List<Score> allScores = scoreRepository.findAllByMatchIdWithRound(matchId);
+        Map<Long, List<Score>> scoresByRoundId = allScores.stream()
+                .filter(s -> s.getMatchRound() != null)
+                .collect(Collectors.groupingBy(s -> s.getMatchRound().getId()));
+
         return rounds.stream()
                 .map(round -> {
-                    Score playerScore = null;
-                    Score opponentScore = null;
+                    Long roundId = round.getId();
                     Long opponentId = null;
                     try {
                         opponentId = getOpponentId(match, playerId);
@@ -169,68 +174,35 @@ public class PlayerMatchService {
                         log.warn("[CurrentMatch] Unable to resolve opponentId for matchId={}, playerId={}: {}", matchId, playerId, e.toString());
                     }
 
-                    // Probe single-result fetch for player
-                    try {
-                        playerScore = scoreRepository.findByMatchRoundAndPlayerId(round, playerId);
-                    } catch (NonUniqueResultException nure) {
-                        // Diagnostic logging: count duplicates per type for this round + player
-                        try {
-                            final Long rId = round.getId();
-                            final Long pId = playerId;
-                            List<Score> all = scoreRepository.findAllByMatchIdWithRound(matchId);
-                            long totalForPlayerAndRound = all.stream()
-                                    .filter(s -> s.getMatchRound() != null && s.getMatchRound().getId().equals(rId))
-                                    .filter(s -> s.getUser() != null && s.getUser().getId().equals(pId))
-                                    .count();
-                            Map<ScoreType, Long> byType = all.stream()
-                                    .filter(s -> s.getMatchRound() != null && s.getMatchRound().getId().equals(rId))
-                                    .filter(s -> s.getUser() != null && s.getUser().getId().equals(pId))
-                                    .collect(Collectors.groupingBy(Score::getScoreType, Collectors.counting()));
-                            log.error("[CurrentMatch][SCORES] NonUniqueResult for PLAYER (matchId={}, roundNo={}, roundId={}, playerId={}) duplicates={}, byType={}",
-                                    matchId, round.getRoundNumber(), rId, pId, totalForPlayerAndRound, byType);
-                        } catch (Exception ex) {
-                            log.error("[CurrentMatch][SCORES] Failed to collect diagnostics for PLAYER (matchId={}, roundId={}, playerId={}): {}", matchId, round.getId(), playerId, ex.toString());
-                        }
-                        // Re-throw to preserve original behavior (na razie tylko logujemy problem)
-                        throw nure;
-                    }
+                    List<Score> roundScores = scoresByRoundId.getOrDefault(roundId, Collections.emptyList());
 
-                    // Probe single-result fetch for opponent (if exists)
-                    if (opponentId != null) {
-                        try {
-                            opponentScore = scoreRepository.findByMatchRoundAndPlayerId(round, opponentId);
-                        } catch (NonUniqueResultException nure) {
-                            try {
-                                final Long rId = round.getId();
-                                final Long oppId = opponentId;
-                                List<Score> all = scoreRepository.findAllByMatchIdWithRound(matchId);
-                                long totalForOppAndRound = all.stream()
-                                        .filter(s -> s.getMatchRound() != null && s.getMatchRound().getId().equals(rId))
-                                        .filter(s -> s.getUser() != null && s.getUser().getId().equals(oppId))
-                                        .count();
-                                Map<ScoreType, Long> byType = all.stream()
-                                        .filter(s -> s.getMatchRound() != null && s.getMatchRound().getId().equals(rId))
-                                        .filter(s -> s.getUser() != null && s.getUser().getId().equals(oppId))
-                                        .collect(Collectors.groupingBy(Score::getScoreType, Collectors.counting()));
-                                log.error("[CurrentMatch][SCORES] NonUniqueResult for OPPONENT (matchId={}, roundNo={}, roundId={}, opponentId={}) duplicates={}, byType={}",
-                                        matchId, round.getRoundNumber(), rId, oppId, totalForOppAndRound, byType);
-                            } catch (Exception ex) {
-                                log.error("[CurrentMatch][SCORES] Failed to collect diagnostics for OPPONENT (matchId={}, roundId={}, opponentId={}): {}", matchId, round.getId(), opponentId, ex.toString());
-                            }
-                            throw nure;
-                        }
-                    }
+                    // Aggregate player scores by ScoreType
+                    Map<ScoreType, Integer> playerAggregated = roundScores.stream()
+                            .filter(s -> s.getUser() != null && s.getUser().getId() != null && s.getUser().getId().equals(playerId))
+                            .collect(Collectors.toMap(
+                                    Score::getScoreType,
+                                    s -> s.getScore() != null ? s.getScore().intValue() : 0,
+                                    Integer::sum));
 
-                    boolean submitted = playerScore != null;
-                    log.debug("[CurrentMatch] Round {} (roundId={}) submitted={}, playerScoreType={}, oppScoreType={}",
-                            round.getRoundNumber(), round.getId(), submitted,
-                            playerScore != null ? playerScore.getScoreType() : null,
-                            opponentScore != null ? opponentScore.getScoreType() : null);
+                    // Aggregate opponent scores by ScoreType (if any)
+                    Map<ScoreType, Integer> opponentAggregated = opponentId == null ? Collections.emptyMap() :
+                            roundScores.stream()
+                                    .filter(s -> s.getUser() != null && s.getUser().getId() != null && s.getUser().getId().equals(opponentId))
+                                    .collect(Collectors.toMap(
+                                            Score::getScoreType,
+                                            s -> s.getScore() != null ? s.getScore().intValue() : 0,
+                                            Integer::sum));
+
+                    boolean submitted = !playerAggregated.isEmpty();
+                    if (!playerAggregated.isEmpty() || !opponentAggregated.isEmpty()) {
+                        log.debug("[CurrentMatch] Round {} (roundId={}) aggregated: playerTypes={}, opponentTypes={}",
+                                round.getRoundNumber(), roundId, playerAggregated.keySet(), opponentAggregated.keySet());
+                    }
 
                     return RoundScoreDTO.builder()
                             .roundNumber(round.getRoundNumber())
-                            .playerScore(convertScore(playerScore))
-                            .opponentScore(convertScore(opponentScore))
+                            .playerScore(playerAggregated)
+                            .opponentScore(opponentAggregated)
                             .isSubmitted(submitted)
                             .build();
                 })
