@@ -22,6 +22,7 @@ import com.tourney.repository.tournament.TournamentRepository;
 import com.tourney.repository.user.UserRepository;
 import com.tourney.service.tournament.TournamentRoundService;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.NonUniqueResultException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -54,13 +55,18 @@ public class PlayerMatchService {
     private final com.tourney.service.tournament.ParticipantStatsUpdateService participantStatsUpdateService;
 
     public Match getCurrentMatchForPlayer(Tournament tournament, Long playerId) {
+        Long tournamentId = tournament != null ? tournament.getId() : null;
+        Integer currentRound = tournament != null ? tournament.getCurrentRound() : null;
+        log.debug("[CurrentMatch] Enter getCurrentMatchForPlayer tid={}, pid={}, currentRound={}", tournamentId, playerId, currentRound);
+
         // 1) Spróbuj znaleźć w bieżącej rundzie – repo zwraca listę posortowaną malejąco po id
         List<com.tourney.domain.games.TournamentMatch> inCurrentRound =
                 matchRepository.findAllByTournamentAndPlayerInRound(
-                        tournament.getId(),
+                        tournamentId,
                         playerId,
-                        tournament.getCurrentRound()
+                        currentRound
                 );
+        log.debug("[CurrentMatch] inCurrentRound size={} (tid={}, pid={}, round={})", inCurrentRound != null ? inCurrentRound.size() : 0, tournamentId, playerId, currentRound);
 
         // Wybór preferowanego meczu: najpierw IN_PROGRESS, potem SCHEDULED, w obu przypadkach najwyższe id
         if (inCurrentRound != null && !inCurrentRound.isEmpty()) {
@@ -71,22 +77,31 @@ public class PlayerMatchService {
                             .filter(m -> m.getStatus() == MatchStatus.SCHEDULED)
                             .findFirst()
                             .orElse(null));
-            if (pick != null) return pick;
+            if (pick != null) {
+                log.debug("[CurrentMatch] Picked from current round: matchId={}, status={} (tid={}, pid={})", pick.getId(), pick.getStatus(), tournamentId, playerId);
+                return pick;
+            }
         }
 
         // 2) Fallback: dowolny IN_PROGRESS w całym turnieju (ostatnia runda, największe id)
         List<com.tourney.domain.games.TournamentMatch> inProgressAnyRound =
-                matchRepository.findInProgressForPlayerInTournament(tournament.getId(), playerId);
+                matchRepository.findInProgressForPlayerInTournament(tournamentId, playerId);
+        log.debug("[CurrentMatch] inProgressAnyRound size={} (tid={}, pid={})", inProgressAnyRound != null ? inProgressAnyRound.size() : 0, tournamentId, playerId);
         if (inProgressAnyRound != null && !inProgressAnyRound.isEmpty()) {
-            return inProgressAnyRound.get(0);
+            com.tourney.domain.games.TournamentMatch pick = inProgressAnyRound.get(0);
+            log.debug("[CurrentMatch] Picked IN_PROGRESS from any round: matchId={}, status={} (round={})", pick.getId(), pick.getStatus(), pick.getTournamentRound() != null ? pick.getTournamentRound().getRoundNumber() : null);
+            return pick;
         }
 
         // 3) Ostatnia szansa: jeśli w bieżącej rundzie coś jest (np. inny status), wybierz rekord o największym id
         if (inCurrentRound != null && !inCurrentRound.isEmpty()) {
-            return inCurrentRound.get(0);
+            com.tourney.domain.games.TournamentMatch pick = inCurrentRound.get(0);
+            log.debug("[CurrentMatch] Picked fallback from current round: matchId={}, status={}", pick.getId(), pick.getStatus());
+            return pick;
         }
 
         // brak dopasowania
+        log.debug("[CurrentMatch] No match found (tid={}, pid={})", tournamentId, playerId);
         return null;
     }
 
@@ -140,22 +155,79 @@ public class PlayerMatchService {
 
     private List<RoundScoreDTO> getRoundScores(Match match, Long playerId) {
         List<MatchRound> rounds = match.getRounds();
+        Long matchId = match.getId();
+        log.debug("[CurrentMatch] Build round scores for matchId={}, playerId={}, rounds={} ", matchId, playerId, rounds != null ? rounds.size() : 0);
+
         return rounds.stream()
                 .map(round -> {
-                    Score playerScore = scoreRepository.findByMatchRoundAndPlayerId(
-                            round,
-                            playerId
-                    );
-                    Score opponentScore = scoreRepository.findByMatchRoundAndPlayerId(
-                            round,
-                            getOpponentId(match, playerId)
-                    );
+                    Score playerScore = null;
+                    Score opponentScore = null;
+                    Long opponentId = null;
+                    try {
+                        opponentId = getOpponentId(match, playerId);
+                    } catch (Exception e) {
+                        log.warn("[CurrentMatch] Unable to resolve opponentId for matchId={}, playerId={}: {}", matchId, playerId, e.toString());
+                    }
+
+                    // Probe single-result fetch for player
+                    try {
+                        playerScore = scoreRepository.findByMatchRoundAndPlayerId(round, playerId);
+                    } catch (NonUniqueResultException nure) {
+                        // Diagnostic logging: count duplicates per type for this round + player
+                        try {
+                            List<Score> all = scoreRepository.findAllByMatchIdWithRound(matchId);
+                            long totalForPlayerAndRound = all.stream()
+                                    .filter(s -> s.getMatchRound() != null && s.getMatchRound().getId().equals(round.getId()))
+                                    .filter(s -> s.getUser() != null && s.getUser().getId().equals(playerId))
+                                    .count();
+                            Map<ScoreType, Long> byType = all.stream()
+                                    .filter(s -> s.getMatchRound() != null && s.getMatchRound().getId().equals(round.getId()))
+                                    .filter(s -> s.getUser() != null && s.getUser().getId().equals(playerId))
+                                    .collect(Collectors.groupingBy(Score::getScoreType, Collectors.counting()));
+                            log.error("[CurrentMatch][SCORES] NonUniqueResult for PLAYER (matchId={}, roundNo={}, roundId={}, playerId={}) duplicates={}, byType={}",
+                                    matchId, round.getRoundNumber(), round.getId(), playerId, totalForPlayerAndRound, byType);
+                        } catch (Exception ex) {
+                            log.error("[CurrentMatch][SCORES] Failed to collect diagnostics for PLAYER (matchId={}, roundId={}, playerId={}): {}", matchId, round.getId(), playerId, ex.toString());
+                        }
+                        // Re-throw to preserve original behavior (na razie tylko logujemy problem)
+                        throw nure;
+                    }
+
+                    // Probe single-result fetch for opponent (if exists)
+                    if (opponentId != null) {
+                        try {
+                            opponentScore = scoreRepository.findByMatchRoundAndPlayerId(round, opponentId);
+                        } catch (NonUniqueResultException nure) {
+                            try {
+                                List<Score> all = scoreRepository.findAllByMatchIdWithRound(matchId);
+                                long totalForOppAndRound = all.stream()
+                                        .filter(s -> s.getMatchRound() != null && s.getMatchRound().getId().equals(round.getId()))
+                                        .filter(s -> s.getUser() != null && s.getUser().getId().equals(opponentId))
+                                        .count();
+                                Map<ScoreType, Long> byType = all.stream()
+                                        .filter(s -> s.getMatchRound() != null && s.getMatchRound().getId().equals(round.getId()))
+                                        .filter(s -> s.getUser() != null && s.getUser().getId().equals(opponentId))
+                                        .collect(Collectors.groupingBy(Score::getScoreType, Collectors.counting()));
+                                log.error("[CurrentMatch][SCORES] NonUniqueResult for OPPONENT (matchId={}, roundNo={}, roundId={}, opponentId={}) duplicates={}, byType={}",
+                                        matchId, round.getRoundNumber(), round.getId(), opponentId, totalForOppAndRound, byType);
+                            } catch (Exception ex) {
+                                log.error("[CurrentMatch][SCORES] Failed to collect diagnostics for OPPONENT (matchId={}, roundId={}, opponentId={}): {}", matchId, round.getId(), opponentId, ex.toString());
+                            }
+                            throw nure;
+                        }
+                    }
+
+                    boolean submitted = playerScore != null;
+                    log.debug("[CurrentMatch] Round {} (roundId={}) submitted={}, playerScoreType={}, oppScoreType={}",
+                            round.getRoundNumber(), round.getId(), submitted,
+                            playerScore != null ? playerScore.getScoreType() : null,
+                            opponentScore != null ? opponentScore.getScoreType() : null);
 
                     return RoundScoreDTO.builder()
                             .roundNumber(round.getRoundNumber())
                             .playerScore(convertScore(playerScore))
                             .opponentScore(convertScore(opponentScore))
-                            .isSubmitted(playerScore != null)
+                            .isSubmitted(submitted)
                             .build();
                 })
                 .collect(Collectors.toList());
