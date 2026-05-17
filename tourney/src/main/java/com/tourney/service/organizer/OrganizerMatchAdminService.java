@@ -129,8 +129,8 @@ public class OrganizerMatchAdminService {
                         });
 
                 score.setUser(mapSideToUser(match, e.getSide()));
-                Integer val = e.getScore() != null ? e.getScore() : 0;
-                score.setScore(val.longValue());
+                Long val = e.getScore() != null ? e.getScore() : 0L;
+                score.setScore(val);
                 score.setEnteredByUserId(organizerId);
                 score.setEnteredAt(now);
                 scoreRepository.save(score);
