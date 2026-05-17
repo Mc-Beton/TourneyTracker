@@ -25,6 +25,7 @@ public class Tournament {
     private Long id;
 
     private String name;
+    @Column(columnDefinition = "TEXT")
     private String description;
     private LocalDate startDate;
     private LocalDate endDate;

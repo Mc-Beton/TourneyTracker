@@ -22,6 +22,16 @@ spring:
     enabled: true
     baseline-on-migrate: true
 
+---
+# Production profile overrides
+spring:
+  config:
+    activate:
+      on-profile: production
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
 springdoc:
   api-docs:
     path: /api-docs
